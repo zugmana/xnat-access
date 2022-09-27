@@ -38,7 +38,7 @@ def main():
             parser = argparse.ArgumentParser(description="download from XNAT.")
             parser.add_argument('-i', '--id', nargs='+',action='store', type=str, required=False, help='id of subject ')
             parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
-            parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in %m-%d-%Y')        
+            parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in m-d-Y')        
             parser.set_defaults(date="")
             parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot', help='save a table with info of data stored in the project.')
             parser.set_defaults(dosnapshot=False)
@@ -50,6 +50,7 @@ def main():
             parser.set_defaults(SeriesName="")
             parser.set_defaults(project="01-M-0192")
             args = parser.parse_args()
+            print(parser.print_help())
             #set variables for ease
             project = args.project
             dosnapshot = args.dosnapshot
