@@ -5,7 +5,7 @@ Spyder Editor
 This is a temporary script file.
 """
 import argparse
-#import pandas as pd
+import pandas as pd
 import xnat
 #import pydicom
 import sys
@@ -23,70 +23,81 @@ from downloadtools.utils import convert2nii
 def main():
     
        
-        if hasattr(sys, "ps1"):
-            project = "01-M-0192"
-            dosnapshot = False
-            #samplesubj = "7832795"
-            sdanid = ["23799"]
-            date = ""
-            download = True
-            SeriesName = ""
-            unzip = True
-            keepdicom = False
-            downloaddir = "/home/zugmana2/Desktop/test"
-        else :
-            parser = argparse.ArgumentParser(description="download from XNAT.")
-            parser.add_argument('-i', '--id', nargs='+',action='store', type=str, required=False, help='id of subject ')
-            parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
-            parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in m-d-Y')        
-            parser.set_defaults(date="")
-            parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot', help='save a table with info of data stored in the project.')
-            parser.set_defaults(dosnapshot=False)
-            parser.add_argument('-s', '--series', action='store', dest='SeriesName', type=str, help='Series Name')
-            parser.add_argument('-p', '--project', action='store', dest='project', type=str, help='project name - as defined in xnat')
-            parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='save a table with info of data stored in the project.')
-            parser.set_defaults(keepdicom = False)
-            #parser.add_argument('--partial', action='store_true',dest='corr_type' , help='use partial correlations')
-            parser.set_defaults(SeriesName="")
-            parser.set_defaults(project="01-M-0192")
-            args = parser.parse_args()
-            print(parser.print_help())
-            #set variables for ease
-            project = args.project
-            dosnapshot = args.dosnapshot
-            #samplesubj = "7832795"
-            sdanid = args.id
-            date = args.date
-            download = True
-            SeriesName = args.SeriesName
-            keepdicom = args.keepdicom
-            unzip = True
-            downloaddir = args.output
-        if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
-            sys.exit("please configure .netrc file")
-        with xnat.connect("https://fmrif-xnat.nimh.nih.gov") as xsession :
-            if dosnapshot :
-             
-                dbsnapshot = checkdatabase(xsession, project)
-                dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"))
-                download = False   
-            if sdanid :
-                for i in sdanid :
-            
-                    print (i)
-                    dbsearched = dbreader(i)
-                    MRN = dbsearched.loc[0,1]
-                    MRN = MRN.replace("-","")
-            
-            if download : 
-                download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
-                if keepdicom :
-                    anonymize(downloaddir, i)
-                else :
-                    convert2nii(downloaddir)
-        #%% Just some testing.
+    if hasattr(sys, "ps1"):
+        project = "01-M-0192"
+        dosnapshot = True
+        #samplesubj = "7832795"
+        sdanid = ["23799"]
+        date = ""
+        download = True
+        SeriesName = ""
+        unzip = True
+        keepdicom = False
+        downloaddir = "/home/zugmana2/Desktop/test5"
+    else :
+        parser = argparse.ArgumentParser(description="Download data from XNAT. created by andre zugman")
+        parser.add_argument('-i', '--id', nargs='+',action='store', type=str, required=False, help='id of subject ')
+        parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
+        parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in m-d-Y')        
+        parser.set_defaults(date="")
+        parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot', help='save a table with info of data stored in the project.')
+        parser.set_defaults(dosnapshot=False)
+        parser.add_argument('-s', '--series', action='store', dest='SeriesName', type=str, help='Series Name')
+        parser.add_argument('-p', '--project', action='store', dest='project', type=str, help='project name - as defined in xnat')
+        parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='save a table with info of data stored in the project.')
+        parser.set_defaults(keepdicom = False)
+        #parser.add_argument('--partial', action='store_true',dest='corr_type' , help='use partial correlations')
+        parser.set_defaults(SeriesName="")
+        parser.set_defaults(project="01-M-0192")
+        args = parser.parse_args()
+        print(parser.print_help())
+        #set variables for ease
+        project = args.project
+        dosnapshot = args.dosnapshot
+        #samplesubj = "7832795"
+        sdanid = args.id
+        date = args.date
+        download = True
+        SeriesName = args.SeriesName
+        keepdicom = args.keepdicom
+        unzip = True
+        downloaddir = args.output
+    if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
+        sys.exit("please configure .netrc file")
+    with xnat.connect("https://fmrif-xnat.nimh.nih.gov") as xsession :
+        if dosnapshot :
+            dbsearched = dbreader(0)
+            dbsearched["subjects"] = dbsearched.loc[:,1].str.replace("-","")
+            dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[a-z]+","", regex=True)
+            dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[A-Z]+","", regex=True)
+            dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(",","")
+            dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce")
+            dbsnapshot = checkdatabase(xsession, project)
+            dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(float)
+            dbsnapshot = dbsnapshot.merge(dbsearched,on= "subjects")
+            dbsnapshot = dbsnapshot.rename(columns={0: "sdanid", 1: "MRN", 2: "DOB",3: "Last Name", 4: "First Name" })
+            dbsnapshot.drop(["subjects",5,6,7], axis = 1, inplace = True)
+            dbsnapshot = dbsnapshot.reindex(columns= ['sdanid', 'MRN',"AccessionNumber",
+                   'DOB', 'Last Name', 'First Name','seriesName', 'uri', 'date-series', 'date-session'])
+            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False)
+    
+            download = False   
+        if sdanid :
+            for i in sdanid :
         
+                print (i)
+                dbsearched = dbreader(i)
+                MRN = dbsearched.loc[0,1]
+                MRN = MRN.replace("-","")
+        
+        if download : 
+            download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
+            if keepdicom :
+                anonymize(downloaddir, i)
+            else :
+                convert2nii(downloaddir)
+       
+    
 
 if __name__ == '__main__':
     main()
-    

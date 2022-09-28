@@ -40,7 +40,7 @@ def checkdatabase(xsession, project) :
 
     
     dbsnapshot = pd.DataFrame(columns=["MRN"])
-    dbsnapshot = pd.DataFrame(columns=["subjects","seriesName","uri","date-series","date-session"])
+    dbsnapshot = pd.DataFrame(columns=["subjects","seriesName","uri","date-series","date-session","AccessionNumber"])
     for xsubject in xproject.subjects.values() :
         xmrn = xsubject.label
         xnat_subject = xproject.subjects[xmrn]
@@ -49,10 +49,11 @@ def checkdatabase(xsession, project) :
             ses_date = xsession.date
             for xscan in xsession.scans.values() :
                 print(xscan)
-                dbsnapshot.loc[len(dbsnapshot.index)] = [xmrn, xscan.series_description, xscan.uri, xscan.start_date, ses_date]
+                AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
+                dbsnapshot.loc[len(dbsnapshot.index)] = [xmrn, xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
         count = count + 1
-        #if count == 10:
-        #    break
+        if count == 2:
+            break
     return dbsnapshot
 
 def dbreader (sdanid):
@@ -66,6 +67,7 @@ def dbreader (sdanid):
         templist = pd.DataFrame(listsid[1:])
         templist.loc[:,0] = templist.loc[:,0].str.strip()
         dbsearched = pd.DataFrame(templist.loc[:,0].str.split(" ").tolist())
+        
     else :
         variable = subprocess.run(["dbsearch {}".format(sdanid)], shell = True, capture_output=True, universal_newlines = True)
         listsid = str(variable.stdout)
