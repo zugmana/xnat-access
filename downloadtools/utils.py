@@ -35,7 +35,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
                           subprocess.run(["rm {}".format(downloadpath)], shell=True)
 
 def checkdatabase(xsession, project) :
-    count = 0
+    #count = 0
     xproject = xsession.projects[project]
 
     
@@ -51,9 +51,9 @@ def checkdatabase(xsession, project) :
                 print(xscan)
                 AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
                 dbsnapshot.loc[len(dbsnapshot.index)] = [xmrn, xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
-        count = count + 1
-        if count == 2:
-            break
+        #count = count + 1
+        #if count == 2:
+        #    break
     return dbsnapshot
 
 def dbreader (sdanid):
@@ -91,9 +91,11 @@ def anonymize(path_dcm, sdanid) :
              paths.append(os.path.join(root, file))
              print("working on file: {}".format(file))
              ds = pydicom.filereader.dcmread(os.path.join(root, file))
-             print(ds.PatientName)
+             #print(ds.PatientName)
              ds.PatientName = sdanid
-             print(ds.PatientName)
+             ds.PatientID = sdanid
+             ds.PatientBirthDate = ""
+             #print(ds.PatientName)
              ds.save_as(os.path.join(root, file))
              
        
