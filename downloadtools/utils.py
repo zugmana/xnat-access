@@ -84,7 +84,7 @@ def dbreader (sdanid):
 def anonymize(path_dcm, sdanid) :
     print('working on dicoms.')
     paths = []
-    for root, dirs, files in os.walk(path_dcm):
+    for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
        #print(dirs)
        for file in files:
           if file.endswith("dcm"):
@@ -99,13 +99,13 @@ def anonymize(path_dcm, sdanid) :
              ds.save_as(os.path.join(root, file))
              
        
-def convert2nii(path_to_subj) :
-    for root, dirs, files in os.walk(path_to_subj):
+def convert2nii(path_dcm, sdanid) :
+    for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
         if not dirs:
             print(root, "converting")        
             subprocess.run(["dcm2niix -f '%f' -z y -o {} {} ".format(root,root)], shell = True)
     
-    for root, dirs, files in os.walk(path_to_subj):
+    for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
        #print(dirs)
        for file in files:
           if file.endswith("dcm"):

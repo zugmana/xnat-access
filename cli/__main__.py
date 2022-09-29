@@ -90,12 +90,12 @@ def main():
                 MRN = dbsearched.loc[0,1]
                 MRN = MRN.replace("-","")
         
-        if download : 
-            download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
-            if keepdicom :
-                anonymize(downloaddir, i)
-            else :
-                convert2nii(downloaddir)
+                if download : 
+                    download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
+                    if keepdicom :
+                        anonymize(downloaddir, i)
+                    else :
+                        convert2nii(downloaddir, i)
        
     
 
