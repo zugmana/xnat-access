@@ -35,7 +35,7 @@ def main():
         keepdicom = False
         downloaddir = "/home/zugmana2/Desktop/test5"
     else :
-        parser = argparse.ArgumentParser(description="Download data from XNAT. created by andre zugman")
+        parser = argparse.ArgumentParser(description="Download data from XNAT. created by Andre Zugman")
         parser.add_argument('-i', '--id', nargs='+',action='store', type=str, required=False, help='id of subject ')
         parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
         parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in m-d-Y')        
@@ -50,7 +50,7 @@ def main():
         parser.set_defaults(SeriesName="")
         parser.set_defaults(project="01-M-0192")
         args = parser.parse_args()
-        print(parser.print_help())
+        #print(parser.print_help())
         #set variables for ease
         project = args.project
         dosnapshot = args.dosnapshot
@@ -85,7 +85,7 @@ def main():
         if sdanid :
             for i in sdanid :
         
-                print (i)
+                #print (i)
                 dbsearched = dbreader(i)
                 MRN = dbsearched.loc[0,1]
                 MRN = MRN.replace("-","")
