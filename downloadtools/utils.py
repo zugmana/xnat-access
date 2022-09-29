@@ -84,8 +84,8 @@ def dbreader (sdanid):
 def anonymize(path_dcm, sdanid) :
     print('working on dicoms.')
     paths = []
-    print(os.path.join(path_dcm,sdanid))
-    for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
+    print(os.path.join(path_dcm,"sub-s{}".format(sdanid)))
+    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
        #print(dirs)
        for file in files:
           #print(file)
@@ -94,20 +94,20 @@ def anonymize(path_dcm, sdanid) :
              print("working on file: {}".format(file))
              ds = pydicom.filereader.dcmread(os.path.join(root, file))
              #print(ds.PatientName)
-             ds.PatientName = sdanid
-             ds.PatientID = sdanid
+             ds.PatientName = "sub-s{}".format(sdanid)
+             ds.PatientID = "sub-s{}".format(sdanid)
              ds.PatientBirthDate = ""
              #print(ds.PatientName)
              ds.save_as(os.path.join(root, file))
              
        
 def convert2nii(path_dcm, sdanid) :
-    for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
+    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
         if not dirs:
             print(root, "converting")        
             subprocess.run(["dcm2niix -f '%f' -z y -o {} {} ".format(root,root)], shell = True)
     
-    for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
+    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
        #print(dirs)
        for file in files:
           if file.endswith("dcm"):
