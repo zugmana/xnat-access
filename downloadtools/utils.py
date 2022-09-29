@@ -84,9 +84,11 @@ def dbreader (sdanid):
 def anonymize(path_dcm, sdanid) :
     print('working on dicoms.')
     paths = []
+    print(os.path.join(path_dcm,sdanid))
     for root, dirs, files in os.walk(os.path.join(path_dcm,sdanid)):
        #print(dirs)
        for file in files:
+          #print(file)
           if file.endswith("dcm"):
              paths.append(os.path.join(root, file))
              print("working on file: {}".format(file))
