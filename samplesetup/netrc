@@ -1,1 +1,1 @@
-machine fmrif-xnat.nimh.nih.gov login username password networkpassword
+machine path.to.xnat.server login username password networkpassword
