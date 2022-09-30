@@ -27,7 +27,7 @@ def main():
         project = "01-M-0192"
         dosnapshot = True
         #samplesubj = "7832795"
-        sdanid = ["23799"]
+        sdanid = ["XXXXX"]
         date = ""
         download = True
         SeriesName = ""
@@ -42,7 +42,7 @@ def main():
         parser.set_defaults(date="")
         parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot', help='save a table with info of data stored in the project.')
         parser.set_defaults(dosnapshot=False)
-        parser.add_argument('-s', '--series', action='store', dest='SeriesName', type=str, help='Series Name')
+        parser.add_argument('-s', '--series', nargs='+', action='store', dest='SeriesName', type=str, help='Series Name')
         parser.add_argument('-p', '--project', action='store', dest='project', type=str, help='project name - as defined in xnat')
         parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='save a table with info of data stored in the project.')
         parser.set_defaults(keepdicom = False)
