@@ -19,7 +19,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
         if date in ses_date.strftime("%m-%d-%Y") : # if date undefined - check all sessions          
           for xscan in xsession.scans.values() :
               xsname =  xscan.series_description
-              if seriesName in xsname : 
+              if any(series in xsname for series in seriesName): 
                   xsname = processString(xsname)
                   xsnumber = xscan.id
                   if xsname not in ["Requisition"] :

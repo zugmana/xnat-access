@@ -47,7 +47,7 @@ def main():
         parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='save a table with info of data stored in the project.')
         parser.set_defaults(keepdicom = False)
         #parser.add_argument('--partial', action='store_true',dest='corr_type' , help='use partial correlations')
-        parser.set_defaults(SeriesName="")
+        parser.set_defaults(SeriesName=[""])
         parser.set_defaults(project="01-M-0192")
         args = parser.parse_args()
         #print(parser.print_help())
