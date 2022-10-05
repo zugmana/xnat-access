@@ -54,9 +54,9 @@ def checkdatabase(xsession, project) :
                 except :
                     AccessionNumber = 99
                 dbsnapshot.loc[len(dbsnapshot.index)] = [xmrn, xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
-        #count = count + 1
-        #if count == 2:
-        #    break
+        # count = count + 1
+        # if count == 2:
+        #     break
     return dbsnapshot
 
 def dbreader (sdanid):
