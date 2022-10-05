@@ -7,3 +7,6 @@ This is still experimental. Use at your own risk.
 The sample setup folder contains example of necessary setup. You'll need to setup a conda environment prior to using. I recommend you install mamba https://mamba.readthedocs.io/en/latest/
 and setup a new environment.
 
+You can now either search subjects by id or download all subjects from a certain date.
+
+To see all options type xnat-tools -h

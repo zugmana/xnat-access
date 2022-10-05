@@ -19,24 +19,28 @@ from downloadtools.utils import download_dcm
 from downloadtools.utils import checkdatabase
 from downloadtools.utils import anonymize
 from downloadtools.utils import convert2nii
+from downloadtools.utils import download_dcm_noid
+from downloadtools.utils import download_dcmname
 #%%
 def main():
     
        
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
-        dosnapshot = True
+        dosnapshot = False
         #samplesubj = "7832795"
-        sdanid = ["XXXXX"]
+        sdanid = ["24584"]
+        #sdanid = False
         date = ""
         download = True
-        SeriesName = ""
+        SeriesName = [""]
         unzip = True
-        keepdicom = False
+        keepdicom = True
         downloaddir = "/home/zugmana2/Desktop/test5"
     else :
         parser = argparse.ArgumentParser(description="Download data from XNAT. created by Andre Zugman")
-        parser.add_argument('-i', '--id', nargs='+',action='store', type=str, required=False, help='id of subject ')
+        parser.add_argument('-i', '--id', nargs='+',dest="id", action='store', type=str, required=False, help='id of subject ')
+        parser.set_defaults(id=False)
         parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
         parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in m-d-Y')        
         parser.set_defaults(date="")
@@ -89,15 +93,32 @@ def main():
                 dbsearched = dbreader(i)
                 MRN = dbsearched.loc[0,1]
                 MRN = MRN.replace("-","")
-        
-                if download : 
-                    download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
-                    if keepdicom :
-                        anonymize(downloaddir, i)
-                    else :
-                        convert2nii(downloaddir, i)
-       
-    
-
+                LastName = dbsearched.loc[0,3]
+                LastName = LastName.replace(",","")
+                FirstName = dbsearched.loc[0,4]
+                if download :
+                    try: 
+                        download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
+                        if keepdicom :
+                            anonymize(downloaddir, i)
+                        else :
+                            convert2nii(downloaddir, i)
+                    except :
+                        print ("Failed to download data as specified. Does subject exist in the database?")
+                        download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, downloaddir, unzip)
+                        if keepdicom :
+                            anonymize(downloaddir, i)
+                        else :
+                            convert2nii(downloaddir, i)
+                        #sys.exit("Failed to download data as specified. Does subject exist in the database?")
+        if not sdanid :
+            print ("no id provided - looking for date")
+            print ("this can take longer. Please wait")
+            sdanid = download_dcm_noid( xsession, project, [date], SeriesName, downloaddir, unzip)
+            for i in sdanid :
+                if keepdicom :
+                    anonymize(downloaddir, i)
+                else :
+                    convert2nii(downloaddir, i)
 if __name__ == '__main__':
     main()
