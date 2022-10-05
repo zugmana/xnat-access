@@ -31,7 +31,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
                           extractpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                       "{}_{}".format(xsname.replace(" ","_"),xsnumber))
                           #os.system("unzip -j {} -d {}".format(downloadpath,extractpath))
-                          subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True)
+                          subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
                           subprocess.run(["rm {}".format(downloadpath)], shell=True)
 
 def checkdatabase(xsession, project) :
@@ -173,7 +173,7 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
                                 extractpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                             "{}_{}".format(xsname.replace(" ","_"),xsnumber))
                                 #os.system("unzip -j {} -d {}".format(downloadpath,extractpath))
-                                subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True)
+                                subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
                                 subprocess.run(["rm {}".format(downloadpath)], shell=True)
     return listsdanid
 
