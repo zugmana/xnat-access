@@ -104,7 +104,7 @@ def main():
                         else :
                             convert2nii(downloaddir, i)
                     except :
-                        print ("Failed to download data as specified. Does subject exist in the database?")
+                        #print ("Failed to download data as specified. Does subject exist in the database?")
                         download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, downloaddir, unzip)
                         if keepdicom :
                             anonymize(downloaddir, i)
