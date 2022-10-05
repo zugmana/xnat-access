@@ -100,9 +100,9 @@ def anonymize(path_dcm, sdanid) :
              ds.PatientBirthDate = ""
              #SN = ds.SeriesName 
              #print(ds.PatientName)
-             ds.save_as(os.path.join(root,"{}_{}.dcm".format(os.path.basename(root),count)))
+             ds.save_as(os.path.join(root,"{}_{}_rec-anonymized.dcm".format(os.path.basename(root),count)))
              count = count+1
-             
+             subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
        
 def convert2nii(path_dcm, sdanid) :
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
