@@ -49,7 +49,10 @@ def checkdatabase(xsession, project) :
             ses_date = xsession.date
             for xscan in xsession.scans.values() :
                 print(xscan)
-                AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
+                try :
+                    AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
+                except :
+                    AccessionNumber = 99
                 dbsnapshot.loc[len(dbsnapshot.index)] = [xmrn, xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
         #count = count + 1
         #if count == 2:
