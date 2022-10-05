@@ -133,6 +133,8 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
     #date = ["2019-03-02", "2018-03-02"]
     listsdanid = []
     projectdf = pd.DataFrame(xproject.experiments.tabulate())
+    projectdf["date"] = pd.to_datetime(projectdf["date"])
+    projectdf["date"] = projectdf["date"].dt.strftime("%m-%d-%Y")
     for d in date :
         scanses = projectdf.loc[ projectdf["date"] == d ]
         for sesref in scanses["ID"] :

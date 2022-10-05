@@ -29,9 +29,9 @@ def main():
         project = "01-M-0192"
         dosnapshot = False
         #samplesubj = "7832795"
-        sdanid = ["24584"]
-        #sdanid = False
-        date = ""
+        #sdanid = ["24584"]
+        sdanid = False
+        date = "10-04-2022"
         download = True
         SeriesName = [""]
         unzip = True
