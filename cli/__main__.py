@@ -27,7 +27,7 @@ def main():
        
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
-        dosnapshot = False
+        dosnapshot = True
         #samplesubj = "7832795"
         sdanid = ["24584"]
         sdanid = False
@@ -42,13 +42,13 @@ def main():
         parser.add_argument('-i', '--id', nargs='+',dest="id", action='store', type=str, required=False, help='id of subject ')
         parser.set_defaults(id=False)
         parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
-        parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in m-d-Y')        
+        parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in mm-dd-yyyy (i.e.: 12-30-2022')        
         parser.set_defaults(date="")
         parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot', help='save a table with info of data stored in the project.')
         parser.set_defaults(dosnapshot=False)
         parser.add_argument('-s', '--series', nargs='+', action='store', dest='SeriesName', type=str, help='Series Name')
         parser.add_argument('-p', '--project', action='store', dest='project', type=str, help='project name - as defined in xnat')
-        parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='save a table with info of data stored in the project.')
+        parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='Keep the dicoms. This will not run dcm2niix and keep anonymized dicoms.')
         parser.set_defaults(keepdicom = False)
         #parser.add_argument('--partial', action='store_true',dest='corr_type' , help='use partial correlations')
         parser.set_defaults(SeriesName=[""])
