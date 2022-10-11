@@ -16,6 +16,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
     xnat_subject = xproject.subjects[xmrn]
     for xsession in xnat_subject.experiments.values() :
         ses_date = xsession.date
+        print(ses_date)
         if date in ses_date.strftime("%m-%d-%Y") : # if date undefined - check all sessions          
           for xscan in xsession.scans.values() :
               xsname =  xscan.series_description
