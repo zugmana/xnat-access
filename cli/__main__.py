@@ -29,8 +29,7 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = True
-        #samplesubj = "7832795"
-        sdanid = ["24584"]
+        sdanid = ["XXXX"]
         sdanid = False
         date = "10-04-2022"
         download = True
