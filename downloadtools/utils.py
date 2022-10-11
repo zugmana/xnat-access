@@ -16,7 +16,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
     xnat_subject = xproject.subjects[xmrn]
     for xsession in xnat_subject.experiments.values() :
         ses_date = xsession.date
-        print(ses_date)
+        #print(ses_date)
         if date in ses_date.strftime("%m-%d-%Y") : # if date undefined - check all sessions          
           for xscan in xsession.scans.values() :
               xsname =  xscan.series_description
@@ -96,7 +96,7 @@ def anonymize(path_dcm, sdanid) :
           #print(file)
           if file.endswith("dcm"):
              paths.append(os.path.join(root, file))
-             print("working on file: {}".format(file))
+             #print("working on file: {}".format(file))
              ds = pydicom.filereader.dcmread(os.path.join(root, file))
              #print(ds.PatientName)
              ds.PatientName = "sub-s{}".format(sdanid)
@@ -182,7 +182,7 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
     return listsdanid
 
 def download_dcmname(xsession, project, FirstName, LastName, sdanid, date, seriesName, downloaddir, unzip) :
-    print('MRN not found attempting to match by name')
+    print('Matching XNAT entry by name')
     print('please check data carefully')
     xproject = xsession.projects[project]
     for i in xproject.subjects.values() :

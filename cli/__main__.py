@@ -13,6 +13,7 @@ import sys
 import os
 #import subprocess
 #
+from . __version__ import __version__
 from downloadtools.utils import dbreader
 #from downloadtools import dbsearch
 from downloadtools.utils import download_dcm
@@ -38,18 +39,30 @@ def main():
         keepdicom = True
         downloaddir = "/home/zugmana2/Desktop/testsnap"
     else :
-        parser = argparse.ArgumentParser(description="Download data from XNAT. created by Andre Zugman")
-        parser.add_argument('-i', '--id', nargs='+',dest="id", action='store', type=str, required=False, help='id of subject ')
+        parser = argparse.ArgumentParser(description="Download data from XNAT v {}. Created by Andre Zugman".format(__version__))
+        parser.add_argument('-v', '--version', action='version',
+                    version='version: {}'.format(__version__))
+        parser.add_argument('-i', '--id', nargs='+',dest="id", action='store', type=str, required=False,
+                            help='id of subject ')
         parser.set_defaults(id=False)
-        parser.add_argument('-o','--output', action='store', type=str, required=True, help='output path.')
-        parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False, help='Session Date in mm-dd-yyyy (i.e.: 12-30-2022')        
+        parser.add_argument('-o','--output', action='store', type=str, required=True,
+                            help='output path.')
+        parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False,
+                            help='Session Date in mm-dd-yyyy (i.e.: 12-30-2022')        
         parser.set_defaults(date="")
-        parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot', help='save a table with info of data stored in the project.')
+        parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot',
+                            help='save a table with info of data stored in the project.')
         parser.set_defaults(dosnapshot=False)
-        parser.add_argument('-s', '--series', nargs='+', action='store', dest='SeriesName', type=str, help='Series Name')
-        parser.add_argument('-p', '--project', action='store', dest='project', type=str, help='project name - as defined in xnat')
-        parser.add_argument('--keepdicom', action='store_true',dest='keepdicom', help='Keep the dicoms. This will not run dcm2niix and keep anonymized dicoms.')
+        parser.add_argument('-s', '--series', nargs='+', action='store', dest='SeriesName', type=str,
+                            help='Series Name')
+        parser.add_argument('-p', '--project', action='store', dest='project', type=str,
+                            help='project name - as defined in xnat')
+        parser.add_argument('--keepdicom', action='store_true',dest='keepdicom',
+                            help='Keep the dicoms. This will not run dcm2niix and keep anonymized dicoms.')
         parser.set_defaults(keepdicom = False)
+        parser.add_argument('--search_name', action='store_true',dest='search_name',
+                            help='Search XNAT by name and not MRN. Default is to search by MRN, and if MRN not found search for Name')
+        parser.set_defaults(search_name = False)
         #parser.add_argument('--partial', action='store_true',dest='corr_type' , help='use partial correlations')
         parser.set_defaults(SeriesName=[""])
         parser.set_defaults(project="01-M-0192")
@@ -64,6 +77,7 @@ def main():
         download = True
         SeriesName = args.SeriesName
         keepdicom = args.keepdicom
+        search_name = args.search_name
         unzip = True
         downloaddir = args.output
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
@@ -106,13 +120,21 @@ def main():
                         else :
                             convert2nii(downloaddir, i)
                     except :
+                        search_name = True
                         #print ("Failed to download data as specified. Does subject exist in the database?")
+                        # download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, downloaddir, unzip)
+                        # if keepdicom :
+                        #     anonymize(downloaddir, i)
+                        # else :
+                        #     convert2nii(downloaddir, i)
+                            #sys.exit("Failed to download data as specified. Does subject exist in the database?")
+                    if search_name :
+                        print ("Downloading by Name")
                         download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, downloaddir, unzip)
                         if keepdicom :
                             anonymize(downloaddir, i)
                         else :
                             convert2nii(downloaddir, i)
-                            #sys.exit("Failed to download data as specified. Does subject exist in the database?")
             if not sdanid :
                 print ("no id provided - looking for date")
                 print ("this can take longer. Please wait")
