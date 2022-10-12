@@ -7,11 +7,9 @@ This is a temporary script file.
 import argparse
 import pandas as pd
 import xnat
-#import pydicom
 import sys
-#from datetime import datetime
 import os
-#import subprocess
+import getpass
 #
 from . __version__ import __version__
 from downloadtools.utils import dbreader
@@ -79,9 +77,14 @@ def main():
         search_name = args.search_name
         unzip = True
         downloaddir = args.output
+        user = None
+        password = None
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
-        sys.exit("please configure .netrc file")
-    with xnat.connect("https://fmrif-xnat.nimh.nih.gov") as xsession :
+        print (".netrc file not found. Prompting for username and password")
+        user = getpass.getuser()
+        print ("current user is {}".format(user))
+        password = getpass.getpass(prompt="Please enter Password : ")
+    with xnat.connect("https://fmrif-xnat.nimh.nih.gov", user=user, password=password) as xsession :
         if dosnapshot :
             dbsearched = dbreader(0)
             dbsearched["subjects"] = dbsearched.loc[:,1].str.replace("-","")

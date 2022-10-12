@@ -10,3 +10,7 @@ and setup a new environment.
 You can now either search subjects by id or download all subjects from a certain date.
 
 To see all options type xnat-tools -h
+
+If you don't have a .netrc you will be prompted to use your password.
+
+
