@@ -93,10 +93,12 @@ def main():
             dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(",","")
             dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce")
             dbsnapshot = checkdatabase(xsession, project)
+            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot-xnatpartial.csv"),index = False)
             dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(float)
             dbsnapshot = dbsnapshot.merge(dbsearched,on= "subjects")
             dbsnapshot = dbsnapshot.rename(columns={0: "sdanid", 1: "MRN", 2: "DOB",3: "Last Name", 4: "First Name" })
-            dbsnapshot.drop(["subjects",5,6,7], axis = 1, inplace = True)
+            dbsnapshot.drop([5,6,7], axis = 1, inplace = True)
+            dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(int)
             dbsnapshot = dbsnapshot.reindex(columns= ['sdanid', 'MRN',"AccessionNumber",
                    'DOB', 'Last Name', 'First Name','seriesName', 'uri', 'date-series', 'date-session'])
             os.makedirs(os.path.join(downloaddir),  exist_ok = True) 

@@ -45,19 +45,20 @@ def checkdatabase(xsession, project) :
     for xsubject in xproject.subjects.values() :
         xmrn = xsubject.label
         xnat_subject = xproject.subjects[xmrn]
-        for xsession in xnat_subject.experiments.values() :
-            #print(xsession)
+        print(xnat_subject)
+        for xsession in xnat_subject.experiments.values() :            
             ses_date = xsession.date
             for xscan in xsession.scans.values() :
-                print(xscan)
+                #print(xscan)
                 try :
                     AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
+                    PID = xscan.dicom_dump(fields = "PatientID")[0]["value"]
                 except :
                     AccessionNumber = 99
-                dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(xmrn), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
+                dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(PID), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
         # count = count + 1
-        # if count == 2:
-        #     break
+        # if count == 5:
+        #      break
     return dbsnapshot
 
 def dbreader (sdanid):
