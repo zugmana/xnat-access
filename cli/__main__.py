@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
-Spyder Editor
 
-This is a temporary script file.
-"""
 import argparse
 import pandas as pd
 import xnat
 import sys
 import os
 import getpass
+import tempfile
 #
 from . __version__ import __version__
 from downloadtools.utils import dbreader
@@ -20,21 +17,27 @@ from downloadtools.utils import anonymize
 from downloadtools.utils import convert2nii
 from downloadtools.utils import download_dcm_noid
 from downloadtools.utils import download_dcmname
+from downloadtools.utils import move_to_dest
+from downloadtools.utils import makebids
 #%%
 def main():
     
        
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
-        dosnapshot = True
-        sdanid = ["XXXX"]
-        sdanid = False
-        date = "10-04-2022"
+        dosnapshot = False
+        sdanid = ["24558"]
+        #sdanid = False
+        date = ""
         download = True
         SeriesName = [""]
         unzip = True
-        keepdicom = True
-        downloaddir = "/home/zugmana2/Desktop/testsnap"
+        keepdicom = False
+        downloaddir = "/home/zugmana2/Desktop/test32"
+        user = None
+        password = None
+        search_name = None
+        os.environ["TMP"]="/home/zugmana2/"
     else :
         parser = argparse.ArgumentParser(description="Download data from XNAT v {}. Created by Andre Zugman".format(__version__))
         parser.add_argument('-v', '--version', action='version',
@@ -60,15 +63,15 @@ def main():
         parser.add_argument('--search_name', action='store_true',dest='search_name',
                             help='Search XNAT by name and not MRN. Default is to search by MRN, and if MRN not found search for Name')
         parser.set_defaults(search_name = False)
-        #parser.add_argument('--partial', action='store_true',dest='corr_type' , help='use partial correlations')
+        parser.add_argument('--dobids', action='store_true',dest='dobids',
+                            help='Export a BIDS directory.')
+        parser.set_defaults(dobids = False)
         parser.set_defaults(SeriesName=[""])
         parser.set_defaults(project="01-M-0192")
         args = parser.parse_args()
         #print(parser.print_help())
-        #set variables for ease
         project = args.project
         dosnapshot = args.dosnapshot
-        #samplesubj = "7832795"
         sdanid = args.id
         date = args.date
         download = True
@@ -79,12 +82,24 @@ def main():
         downloaddir = args.output
         user = None
         password = None
+        dobids = args.dobids
+
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
         print (".netrc file not found. Prompting for username and password")
         user = getpass.getuser()
         print ("current user is {}".format(user))
         password = getpass.getpass(prompt="Please enter Password : ")
     with xnat.connect("https://fmrif-xnat.nimh.nih.gov", user=user, password=password) as xsession :
+        #os.environ["TMP"]
+        if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
+            print("WARNING : tempfile not specified by user. Please consider setting your TMP path before running this script" )
+            print("Please type : TMP=/home/{}/tmp or some other approapriate path.".format(getpass.getuser()))
+            print("using system default may cause problems")
+            print("Will try /home/{}/tmp".format(getpass.getuser()))
+            tempfile.tempdir = "/home/{}/tmp".format(getpass.getuser())
+            if not os.path.isdir("/home/{}/tmp".format(getpass.getuser())) :
+                os.makedirs("/home/{}/tmp".format(getpass.getuser()))
+            
         if dosnapshot :
             dbsearched = dbreader(0)
             dbsearched["subjects"] = dbsearched.loc[:,1].str.replace("-","")
@@ -106,47 +121,57 @@ def main():
     
             download = False   
         if download :
-            if sdanid :
-                for i in sdanid :
+            #set up temp folder to work on
+            #tempfile.tempdir=tempfile.gettempdir()
+            os.makedirs(os.path.join(downloaddir),  exist_ok = True)
+            with tempfile.TemporaryDirectory(suffix=None, prefix=None) as tempdir :
             
-                    #print (i)
-                    dbsearched = dbreader(i)
-                    MRN = dbsearched.loc[0,1]
-                    MRN = MRN.replace("-","")
-                    LastName = dbsearched.loc[0,3]
-                    LastName = LastName.replace(",","")
-                    FirstName = dbsearched.loc[0,4]
-                    
-                    try: 
-                        download_dcm(xsession, project, MRN, i, date, SeriesName, downloaddir, unzip )
+                if sdanid :
+                    for i in sdanid :
+                
+                        #print (i)
+                        dbsearched = dbreader(i)
+                        MRN = dbsearched.loc[0,1]
+                        MRN = MRN.replace("-","")
+                        LastName = dbsearched.loc[0,3]
+                        LastName = LastName.replace(",","")
+                        FirstName = dbsearched.loc[0,4]
+                        
+                        try: 
+                            download_dcm(xsession, project, MRN, i, date, SeriesName, tempdir, unzip )
+                            if keepdicom :
+                                downloaddirlocal = os.path.join(downloaddir,"dicom")
+                                anonymize(tempdir,downloaddirlocal, i)
+                            else :
+                                downloaddirlocal = os.path.join(downloaddir,"nifti")
+                                convert2nii(tempdir,downloaddirlocal, i)
+                        except :
+                            search_name = True
+                            print("Error downloading using MRN.")
+                        if search_name :
+                            print ("Downloading by Name")
+                            download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, tempdir, unzip)
+                            if keepdicom :
+                                downloaddirlocal = os.path.join(downloaddir,"dicom")
+                                anonymize(tempdir,downloaddirlocal, i)
+                            else :
+                                downloaddirlocal = os.path.join(downloaddir,"nifti")
+                                convert2nii(tempdir,downloaddirlocal, i)
+                if not sdanid :
+                    print ("no id provided - looking for date")
+                    print ("this can take longer. Please wait")
+                    sdanid = download_dcm_noid( xsession, project, [date], SeriesName, tempdir, unzip)
+                    for i in sdanid :
                         if keepdicom :
-                            anonymize(downloaddir, i)
+                            downloaddirlocal = os.path.join(downloaddir,"dicom")
+                            anonymize(tempdir,downloaddirlocal, i)
                         else :
-                            convert2nii(downloaddir, i)
-                    except :
-                        search_name = True
-                        #print ("Failed to download data as specified. Does subject exist in the database?")
-                        # download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, downloaddir, unzip)
-                        # if keepdicom :
-                        #     anonymize(downloaddir, i)
-                        # else :
-                        #     convert2nii(downloaddir, i)
-                            #sys.exit("Failed to download data as specified. Does subject exist in the database?")
-                    if search_name :
-                        print ("Downloading by Name")
-                        download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, downloaddir, unzip)
-                        if keepdicom :
-                            anonymize(downloaddir, i)
-                        else :
-                            convert2nii(downloaddir, i)
-            if not sdanid :
-                print ("no id provided - looking for date")
-                print ("this can take longer. Please wait")
-                sdanid = download_dcm_noid( xsession, project, [date], SeriesName, downloaddir, unzip)
-                for i in sdanid :
-                    if keepdicom :
-                        anonymize(downloaddir, i)
-                    else :
-                        convert2nii(downloaddir, i)
+                            downloaddirlocal = os.path.join(downloaddir,"nifti")
+                            convert2nii(tempdir,downloaddirlocal, i)
+                
+                if dobids :
+                    makebids(downloaddirlocal,tempdir, True)
+                #move contents from tempdir to destdir
+                #move_to_dest(tempdir, downloaddir)
 if __name__ == '__main__':
     main()

@@ -24,16 +24,18 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
                   xsname = processString(xsname)
                   xsnumber = xscan.id
                   if xsname not in ["Requisition"] :
-                      os.makedirs(os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
-                      downloadpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                  "{}_{}.tgz".format(xsname.replace(" ","_"),xsnumber))
+                      xsname = simplifystring(xsname)
+                      os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
+                      downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                  "{}_{}.tgz".format(xsname,xsnumber))
+                      #print(downloadpath)
                       xscan.download(downloadpath)
                       if unzip : 
-                          extractpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                      "{}_{}".format(xsname.replace(" ","_"),xsnumber))
-                          #os.system("unzip -j {} -d {}".format(downloadpath,extractpath))
+                          extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                      "{}_{}".format(xsname,xsnumber))
+
                           subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
-                          subprocess.run(["rm {}".format(downloadpath)], shell=True)
+                          subprocess.run(["sortme {}".format(extractpath)], shell=True)
 
 def checkdatabase(xsession, project) :
     #count = 0
@@ -86,11 +88,11 @@ def dbreader (sdanid):
 
     return dbsearched 
 
-def anonymize(path_dcm, sdanid) :
+def anonymize(path_dcm, downloaddir, sdanid) :
     print('working on dicoms. Please do not interrupt.')
     paths = []
-    #print(os.path.join(path_dcm,"sub-s{}".format(sdanid)))
-    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
+    #print(os.path.join(path_dcm,"sub-{}".format(sdanid)))
+    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
        #print(dirs)
        count = 0
        for file in files:
@@ -100,29 +102,23 @@ def anonymize(path_dcm, sdanid) :
              #print("working on file: {}".format(file))
              ds = pydicom.filereader.dcmread(os.path.join(root, file))
              #print(ds.PatientName)
-             ds.PatientName = "sub-s{}".format(sdanid)
-             ds.PatientID = "sub-s{}".format(sdanid)
+             ds.PatientName = "sub-{}".format(sdanid)
+             ds.PatientID = "sub-{}".format(sdanid)
              ds.PatientBirthDate = ""
              #SN = ds.SeriesName 
              #print(ds.PatientName)
-             ds.save_as(os.path.join(root,"{}_{}_rec-anonymized.dcm".format(os.path.basename(root),count)))
+             os.makedirs(root.replace(path_dcm,downloaddir), exist_ok=True)
+             ds.save_as(os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count)))
              count = count+1
-             subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
+             #subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
        
-def convert2nii(path_dcm, sdanid) :
-    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
+def convert2nii(path_dcm, downloaddir, sdanid) :
+    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
         if not dirs:
-            print(root, "converting")        
-            subprocess.run(["dcm2niix -f '%f' -z y -o {} {} ".format(root,root)], shell = True)
+            print(root, "converting")
+            os.makedirs(root.replace(path_dcm,downloaddir), exist_ok=True)
+            subprocess.run(["dcm2niix -f 'sub-{}_%f' -z y -o {} {} ".format(sdanid,root.replace(path_dcm,downloaddir),root)], shell = True)
     
-    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-s{}".format(sdanid))):
-       #print(dirs)
-       for file in files:
-          if file.endswith("dcm"):
-             #paths.append(os.path.join(root, file))
-             #print("working on file: {}".format(file))
-             subprocess.run(["rm {} ".format(os.path.join(root, file))], shell = True)    
-        
 
 def processString(txt):
   specialChars = "!#$%^&*()" 
@@ -133,9 +129,9 @@ def processString(txt):
 def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
     #print(xmrn)
     xproject = xsession.projects[project]
-    #xnat_subject = xproject.subjects[xmrn]
+
     #the builtin filter doesn't work. Will transform into pandas and use that to find.
-    #date = ["2019-03-02", "2018-03-02"]
+
     listsdanid = []
     projectdf = pd.DataFrame(xproject.experiments.tabulate())
     projectdf["date"] = pd.to_datetime(projectdf["date"])
@@ -169,17 +165,18 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
                         xsnumber = xscan.id
                         print(xsnumber)
                         if xsname not in ["Requisition"] :
-                            os.makedirs(os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
-                            downloadpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                        "{}_{}.tgz".format(xsname.replace(" ","_"),xsnumber))
+                            xsname = simplifystring(xsname)
+                            os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
+                            downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                        "{}_{}.tgz".format(xsname,xsnumber))
                             print(downloadpath)
                             xscan.download(downloadpath)
                             if unzip : 
-                                extractpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                            "{}_{}".format(xsname.replace(" ","_"),xsnumber))
+                                extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                            "{}_{}".format(xsname,xsnumber))
                                 #os.system("unzip -j {} -d {}".format(downloadpath,extractpath))
                                 subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
-                                subprocess.run(["rm {}".format(downloadpath)], shell=True)
+                                subprocess.run(["sortme {}".format(extractpath)], shell=True)
     return listsdanid
 
 def download_dcmname(xsession, project, FirstName, LastName, sdanid, date, seriesName, downloaddir, unzip) :
@@ -188,9 +185,14 @@ def download_dcmname(xsession, project, FirstName, LastName, sdanid, date, serie
     xproject = xsession.projects[project]
     for i in xproject.subjects.values() :
         #print(i.label)
-        if FirstName.upper() and LastName.upper() in i.label.upper() :
+        NAMES = [FirstName.upper() , LastName.upper()]
+        #if (FirstName.upper() and LastName.upper()) in i.label.upper() : This would match either first or lastname.
+        if all(n in i.label.upper() for n in NAMES) :
             print('found subject')
             xnat_subject = i
+            #print(i.label)
+            #print(FirstName.upper())
+            #print(LastName.upper())
             for xsession in xnat_subject.experiments.values() :
                 ses_date = xsession.date
                 #print(ses_date)
@@ -201,17 +203,36 @@ def download_dcmname(xsession, project, FirstName, LastName, sdanid, date, serie
                           xsname = processString(xsname)
                           xsnumber = xscan.id
                           if xsname not in ["Requisition", "Screen Save"] :
-                              os.makedirs(os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
-                              downloadpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                          "{}_{}.tgz".format(xsname.replace(" ","_"),xsnumber))
+                              xsname = simplifystring(xsname)
+                              os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
+                              downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                          "{}_{}.tgz".format(xsname,xsnumber))
                               xscan.download(downloadpath)
                               if unzip : 
-                                  extractpath = os.path.join(downloaddir,"sub-s{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                              "{}_{}".format(xsname.replace(" ","_"),xsnumber))
+                                  extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                              "{}_{}".format(xsname,xsnumber))
                                   #os.system("unzip -j {} -d {}".format(downloadpath,extractpath))
                                   subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL )
-                                  subprocess.run(["rm {}".format(downloadpath)], shell=True)
-#check if mrn is actually a name
+                                  subprocess.run(["sortme {}".format(extractpath)], shell=True)
+
+def makebids(downloaddir,tempdir,renumber):
+    print('starting BIDS')
+    target = os.path.split(downloaddir)[0]
+    if renumber :
+        subprocess.run(["xnat2bids -n {} -b {}/BIDS -r".format(downloaddir,tempdir)],shell = True)
+    else :
+        subprocess.run(["xnat2bids -n {} -b {}/BIDS -r".format(downloaddir,tempdir)],shell = True)
+    subprocess.run(["rsync -av {}/BIDS {} -r".format(tempdir,target)],shell = True)
+
 def contains_number(string):
     mrn_true = all(char.isdigit() for char in string.replace("-",""))
     return mrn_true
+
+def move_to_dest(tempdir,finaldir):
+    subprocess.run(["mv {}/* {}".format(tempdir,finaldir)], shell=True, stdout=subprocess.DEVNULL)
+    
+def simplifystring(S):  
+    special_chars = [' ', '-', '.', '+', '(', ')', '/',':']
+    for c in special_chars:
+        S = S.replace(c, '-')
+    return S
