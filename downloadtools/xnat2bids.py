@@ -243,7 +243,7 @@ def main() :
                     datatype = '' # string to store the datatypeectory for this type of image
                     recstr   = '' # string to store the kind of reconstruction
                     dirstr   = '' # string to store the direction of phase enconding
-                    echstr   = '' # strong to store the echo time
+                    echstr   = None # strong to store the echo time
                     modstr   = '' # string to store the type of modality
 
                     has_fmap   = 'no'
@@ -1057,7 +1057,7 @@ def main() :
                     D[sdan_id][acquisition_date].loc[oldfnam,'echstr'] = echstr
                     D[sdan_id][acquisition_date].loc[oldfnam,'modstr'] = modstr
                     
-         
+       #%%  
         if renumber :
             for sdan_id in D :
                 D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))
@@ -1065,22 +1065,24 @@ def main() :
                 for acquisition_date in D[sdan_id]:
                     #print(acquisition_date)
                     D[sdan_id][acquisition_date]["run"] = D[sdan_id][acquisition_date].sort_values(
-                         "acquisition_time",ascending=True).groupby(["series_description"]).cumcount()+1
+                         "acquisition_time",ascending=True).groupby(["taskstr","recstr","dirstr","modstr"]).cumcount()+1
                     D[sdan_id][acquisition_date]["ses"] = countses
                      #renumberecho
                     if len(D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()]) > 0 :
                          echos = D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
-                                 "echstr",ascending=True).groupby(["series_description"]).cumcount()+1
+                                 "echstr",ascending=True).groupby(["series_description","seriesnum"]).cumcount()+1
                          D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"echstr"] = "_echo-" + echos.astype(str)
                          D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"run"] = \
-                             D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"run"].min()
+                             D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
+                                  "acquisition_time",ascending=True).groupby(["seriesnum"]).ngroup()+1
+                    D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["echstr"].isnull(),"echstr"] = ''
                     D[sdan_id][acquisition_date]["newfnam"] = D[sdan_id][acquisition_date]["substr"] + '_ses-' + D[sdan_id][acquisition_date]["ses"].astype(str) \
                          + D[sdan_id][acquisition_date]["taskstr"] + D[sdan_id][acquisition_date]["recstr"] + D[sdan_id][acquisition_date]["dirstr"] \
                              + '_run-' + D[sdan_id][acquisition_date]["run"].astype(str) + D[sdan_id][acquisition_date]["echstr"] \
                                 + D[sdan_id][acquisition_date]["modstr"]
                     
                     countses = countses + 1
-                     
+#                  
         else :
             for sdan_id in D :
                 D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))

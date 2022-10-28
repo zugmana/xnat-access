@@ -23,7 +23,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
               if any(series in xsname for series in seriesName): 
                   xsname = processString(xsname)
                   xsnumber = xscan.id
-                  if xsname not in ["Requisition"] :
+                  if xsname not in ["Requisition", "Screen Save"] :
                       xsname = simplifystring(xsname)
                       os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                       downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
@@ -164,7 +164,7 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
                         xsname = processString(xsname)
                         xsnumber = xscan.id
                         print(xsnumber)
-                        if xsname not in ["Requisition"] :
+                        if xsname not in ["Requisition", "Screen Save"] :
                             xsname = simplifystring(xsname)
                             os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                             downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
