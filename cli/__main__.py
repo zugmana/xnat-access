@@ -17,7 +17,7 @@ from downloadtools.utils import anonymize
 from downloadtools.utils import convert2nii
 from downloadtools.utils import download_dcm_noid
 from downloadtools.utils import download_dcmname
-from downloadtools.utils import move_to_dest
+#from downloadtools.utils import move_to_dest
 from downloadtools.utils import makebids
 #%%
 def main():
@@ -83,6 +83,8 @@ def main():
         user = None
         password = None
         dobids = args.dobids
+        if keepdicom :
+            dobids = False
 
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
         print (".netrc file not found. Prompting for username and password")
@@ -171,7 +173,6 @@ def main():
                 
                 if dobids :
                     makebids(downloaddirlocal,tempdir, True)
-                #move contents from tempdir to destdir
-                #move_to_dest(tempdir, downloaddir)
+
 if __name__ == '__main__':
     main()

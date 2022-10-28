@@ -221,7 +221,7 @@ def makebids(downloaddir,tempdir,renumber):
     if renumber :
         subprocess.run(["xnat2bids -n {} -b {}/BIDS -r".format(downloaddir,tempdir)],shell = True)
     else :
-        subprocess.run(["xnat2bids -n {} -b {}/BIDS -r".format(downloaddir,tempdir)],shell = True)
+        subprocess.run(["xnat2bids -n {} -b {}/BIDS ".format(downloaddir,tempdir)],shell = True)
     subprocess.run(["rsync -av {}/BIDS {} -r".format(tempdir,target)],shell = True)
 
 def contains_number(string):

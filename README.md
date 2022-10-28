@@ -14,10 +14,20 @@ To see all options type xnat-tools -h
 If you don't have a .netrc you will be prompted to use your password.
 
 Changes in new version (0.2):
+
 Searching by name will now only download if it can match BOTH name and lastname
+
 Adapted nidb2bids from Anderson Winkler to work with XNAT output.
+
 This is still experimental. Info is hardcoded in the script, new series will need to be added. 
+
 If it is not there data will be added in unkwnon folder.
+
 Made some improvements on location of downloaded files.
+
 Solved problem where multi-echo data would result in single nifti.
+
+Minor to 0.2.0.1 :
+
+Saves updated Echo time to dicom header
 

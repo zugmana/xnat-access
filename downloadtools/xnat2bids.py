@@ -147,9 +147,9 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/home/zugmana2/Desktop/test21"
+        dirin="/home/zugmana2/Desktop/test20/nifti"
         dirout="/home/zugmana2/Desktop/test42"
-        renumber = False
+        renumber = True
     else :       
         args = parseArguments(sys.argv)
         dirin = args.dirin
@@ -1068,11 +1068,12 @@ def main() :
                          "acquisition_time",ascending=True).groupby(["series_description"]).cumcount()+1
                     D[sdan_id][acquisition_date]["ses"] = countses
                      #renumberecho
-                    if len(D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["echstr"].isnull()]) > 0 :
-                         D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["echstr"].isnull()] =\
-                             D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
+                    if len(D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()]) > 0 :
+                         echos = D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
                                  "echstr",ascending=True).groupby(["series_description"]).cumcount()+1
-                             
+                         D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"echstr"] = "_echo-" + echos.astype(str)
+                         D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"run"] = \
+                             D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"run"].min()
                     D[sdan_id][acquisition_date]["newfnam"] = D[sdan_id][acquisition_date]["substr"] + '_ses-' + D[sdan_id][acquisition_date]["ses"].astype(str) \
                          + D[sdan_id][acquisition_date]["taskstr"] + D[sdan_id][acquisition_date]["recstr"] + D[sdan_id][acquisition_date]["dirstr"] \
                              + '_run-' + D[sdan_id][acquisition_date]["run"].astype(str) + D[sdan_id][acquisition_date]["echstr"] \

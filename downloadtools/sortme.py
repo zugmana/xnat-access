@@ -6,7 +6,7 @@ Created on Wed Aug 15 13:58:08 2018
 @author: winkleram
 """
 
-import os, sys, numpy, pydicom, json, datetime
+import os, sys, numpy, pydicom, json, datetime , shutil
 
 def printHelp(argv): # ========================================================
     # Print help
@@ -172,10 +172,15 @@ def sortMultiEcho(allFileNames,path): # ========================================
     for sopIDs in multiEchoFilesSortedDict.keys():
         sliceIndex = multiEchoFilesSortedDict[sopIDs][1]
         for EchoIdx in range(0, nEchoes):
+            newEcho = EchoTime0 + (EchoIdx*echoTimeDiff)
+            #print(newEcho)
             dirName = path + "_echo_%04d" % (EchoIdx + 1)
             if sliceIndex in sliceIndexList[EchoIdx]:
-                os.rename(multiEchoFilesSortedDict[sopIDs][0],
-                          os.path.join(dirName, multiEchoFilesSortedDict[sopIDs][0]))
+                #os.rename(multiEchoFilesSortedDict[sopIDs][0],
+                #          os.path.join(dirName, multiEchoFilesSortedDict[sopIDs][0]))
+                ds = pydicom.filereader.dcmread(multiEchoFilesSortedDict[sopIDs][0])
+                ds.EchoTime = newEcho
+                ds.save_as(os.path.join(dirName, multiEchoFilesSortedDict[sopIDs][0]))
                 break
         # Give some indication of progress
         if (imageCount % round(nImagesExp/100) == 0) or (imageCount == nImagesExp):
@@ -246,11 +251,10 @@ def main() :
         #                AcqDateTime=AcqDateTime, MoveFile=MoveFile)
        
     else:
-        EchoTime0    = float(returnTagValue(dicomHdr, ('0018','0081')))
-        echoTimeDiff = float(returnTagValue(dicomHdr, ('0019','10ac')))
+
         if not isSorted:
             sortMultiEcho(allFileNames,way)
-            os.rmdir(way)
+            shutil.rmtree(way, ignore_errors=True)
         # for EchoIdx in range(0, nEchoes):
         #     dirName   = "echo_%04d" % (EchoIdx + 1)
         #     #niftiName = dirName
