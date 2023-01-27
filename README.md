@@ -31,3 +31,15 @@ Minor to 0.2.0.1 :
 
 Saves updated Echo time to dicom header
 
+NEW CHANGES :
+ADDED a flag that allows to skip robin.
+In this case use --not-robin followed by the MRN.
+Provide SDANID as usual. The data will be anonymized to use the SDAN ID you provided.
+You can potentially use with any characters, not necessarily sdanid 
+(i.e.: This might come in handy if you want to use NDA GUID)
+Do use this with care as you can potentially not remove PII fully.
+
+I have also made minor changes where it won't automatically change for name if the download fails.
+The name issue has been solved. I've kept the --search-name flag if it evers becomes needed again.
+
+

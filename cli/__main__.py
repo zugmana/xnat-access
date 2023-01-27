@@ -26,18 +26,21 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24558"]
+        sdanid = ["24573"] #"24573","24590"]
         #sdanid = False
-        date = ""
+        date = "2023"
         download = True
         SeriesName = [""]
         unzip = True
         keepdicom = False
-        downloaddir = "/home/zugmana2/Desktop/test32"
+        search_name = False
+        downloaddir = "/EDB/SDAN/temp/testTMS"
         user = None
         password = None
-        search_name = None
-        os.environ["TMP"]="/home/zugmana2/"
+        MRNid = ["8297769"]#["8297769","8317732"]
+        search_robin = True
+        dobids = False
+        #os.environ["TMP"] = "/EDB/SDAN/temp/"
     else :
         parser = argparse.ArgumentParser(description="Download data from XNAT v {}. Created by Andre Zugman".format(__version__))
         parser.add_argument('-v', '--version', action='version',
@@ -66,6 +69,11 @@ def main():
         parser.add_argument('--dobids', action='store_true',dest='dobids',
                             help='Export a BIDS directory.')
         parser.set_defaults(dobids = False)
+        parser.add_argument('--not-robin', nargs='+', action='store',dest='MRNid',
+                            help="""Do not use robin id. In this case provide the MRN manually with no "-".
+                            You can also use this with other ID (i.e.: NDAR GUID). In this case the data will use the id provided.
+                            Only use this if you are sure it is safe to do so.""")
+        parser.set_defaults(MRNid = None)
         parser.set_defaults(SeriesName=[""])
         parser.set_defaults(project="01-M-0192")
         args = parser.parse_args()
@@ -83,8 +91,14 @@ def main():
         user = None
         password = None
         dobids = args.dobids
-        if keepdicom :
-            dobids = False
+        MRNid = args.MRNid
+    if keepdicom :
+        dobids = False
+    if MRNid is None :
+        search_robin = True
+    else :
+        search_robin = False
+            
 
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
         print (".netrc file not found. Prompting for username and password")
@@ -95,7 +109,7 @@ def main():
         #os.environ["TMP"]
         if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
             print("WARNING : tempfile not specified by user. Please consider setting your TMP path before running this script" )
-            print("Please type : TMP=/home/{}/tmp or some other approapriate path.".format(getpass.getuser()))
+            print("Please type : export TMP=/home/{}/tmp or some other approapriate path.".format(getpass.getuser()))
             print("using system default may cause problems")
             print("Will try /home/{}/tmp".format(getpass.getuser()))
             tempfile.tempdir = "/home/{}/tmp".format(getpass.getuser())
@@ -129,29 +143,32 @@ def main():
             with tempfile.TemporaryDirectory(suffix=None, prefix=None) as tempdir :
             
                 if sdanid :
-                    for i in sdanid :
-                
-                        #print (i)
-                        dbsearched = dbreader(i)
-                        MRN = dbsearched.loc[0,1]
-                        MRN = MRN.replace("-","")
-                        LastName = dbsearched.loc[0,3]
-                        LastName = LastName.replace(",","")
-                        FirstName = dbsearched.loc[0,4]
+                    for idd,i in enumerate(sdanid) :
                         
-                        try: 
-                            download_dcm(xsession, project, MRN, i, date, SeriesName, tempdir, unzip )
-                            if keepdicom :
-                                downloaddirlocal = os.path.join(downloaddir,"dicom")
-                                anonymize(tempdir,downloaddirlocal, i)
-                            else :
-                                downloaddirlocal = os.path.join(downloaddir,"nifti")
-                                convert2nii(tempdir,downloaddirlocal, i)
-                        except :
-                            search_name = True
-                            print("Error downloading using MRN.")
+                        #print (i)
+                        if search_robin :
+                            dbsearched = dbreader(i)
+                            MRN = dbsearched.loc[0,1]
+                            MRN = MRN.replace("-","")
+                            LastName = dbsearched.loc[0,3]
+                            LastName = LastName.replace(",","")
+                            FirstName = dbsearched.loc[0,4]
+                        else :
+                            MRN = MRNid[idd]
+                        #try: 
+                        download_dcm(xsession, project, MRN, i, date, SeriesName, tempdir, unzip )
+                        if keepdicom :
+                            downloaddirlocal = os.path.join(downloaddir,"dicom")
+                            anonymize(tempdir,downloaddirlocal, i)
+                        else :
+                            downloaddirlocal = os.path.join(downloaddir,"nifti")
+                            convert2nii(tempdir,downloaddirlocal, i)
+                        #except :
+                        #    search_name = True
+                        #    print("Error downloading using MRN.")
                         if search_name :
                             print ("Downloading by Name")
+                            
                             download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, tempdir, unzip)
                             if keepdicom :
                                 downloaddirlocal = os.path.join(downloaddir,"dicom")
@@ -162,6 +179,9 @@ def main():
                 if not sdanid :
                     print ("no id provided - looking for date")
                     print ("this can take longer. Please wait")
+                    if not search_robin :
+                        print ("you cannot look by date without robin. Data would keep MRN")
+                        sys.exit("ERROR")
                     sdanid = download_dcm_noid( xsession, project, [date], SeriesName, tempdir, unzip)
                     for i in sdanid :
                         if keepdicom :
