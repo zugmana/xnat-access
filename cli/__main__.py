@@ -19,6 +19,7 @@ from downloadtools.utils import download_dcm_noid
 from downloadtools.utils import download_dcmname
 #from downloadtools.utils import move_to_dest
 from downloadtools.utils import makebids
+from downloadtools.utils import checkdatabasesubject
 #%%
 def main():
     
@@ -34,12 +35,14 @@ def main():
         unzip = True
         keepdicom = False
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/testTMS"
+        downloaddir = "/EDB/SDAN/temp/test6month"
         user = None
         password = None
         MRNid = ["8297769"]#["8297769","8317732"]
+        dosnapshotsubject = True
         search_robin = True
         dobids = False
+        
         #os.environ["TMP"] = "/EDB/SDAN/temp/"
     else :
         parser = argparse.ArgumentParser(description="Download data from XNAT v {}. Created by Andre Zugman".format(__version__))
@@ -90,8 +93,13 @@ def main():
         downloaddir = args.output
         user = None
         password = None
+        dosnapshotsubject = False
         dobids = args.dobids
         MRNid = args.MRNid
+    if dosnapshot and  isinstance(sdanid, list):
+        dosnapshotsubject = True
+        download = False
+        dosnapshot = False
     if keepdicom :
         dobids = False
     if MRNid is None :
@@ -135,7 +143,15 @@ def main():
             os.makedirs(os.path.join(downloaddir),  exist_ok = True) 
             dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False)
     
-            download = False   
+            download = False
+        
+        if dosnapshotsubject :
+            for idd,i in enumerate(sdanid) :
+                dbsnapshot = checkdatabasesubject(xsession, project, i, MRNid[idd])
+                if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
+                    dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
+                else:
+                    dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
         if download :
             #set up temp folder to work on
             #tempfile.tempdir=tempfile.gettempdir()

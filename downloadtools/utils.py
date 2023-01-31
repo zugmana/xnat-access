@@ -63,6 +63,30 @@ def checkdatabase(xsession, project) :
         #      break
     return dbsnapshot
 
+def checkdatabasesubject(xsession, project, sdanid, xmrn) :
+    #count = 0
+    xproject = xsession.projects[project]
+    xnat_subject = xproject.subjects[xmrn]    
+    #dbsnapshot = pd.DataFrame(columns=["MRN"])
+    dbsnapshot = pd.DataFrame(columns=["subjects","seriesName","uri","date-series","date-session","AccessionNumber"])
+    #for xsubject in xproject.subjects.values() :
+    #    xmrn = xsubject.label
+    print(xnat_subject)
+    for xsession in xnat_subject.experiments.values() :            
+        ses_date = xsession.date
+        for xscan in xsession.scans.values() :
+            #print(xscan)
+            try :
+                AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
+                #PID = xscan.dicom_dump(fields = "PatientID")[0]["value"]
+            except :
+                AccessionNumber = 99
+            dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(sdanid), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
+            # count = count + 1
+        # if count == 5:
+        #      break
+    return dbsnapshot
+
 def dbreader (sdanid):
     if sdanid == 0:
         variable = subprocess.run(["dbsearch \"\""], shell = True, capture_output=True, universal_newlines = True)

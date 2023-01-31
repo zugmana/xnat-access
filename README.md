@@ -31,7 +31,8 @@ Minor to 0.2.0.1 :
 
 Saves updated Echo time to dicom header
 
-NEW CHANGES :
+NEW CHANGES v 0.3 :
+
 ADDED a flag that allows to skip robin.
 In this case use --not-robin followed by the MRN.
 Provide SDANID as usual. The data will be anonymized to use the SDAN ID you provided.
@@ -41,5 +42,7 @@ Do use this with care as you can potentially not remove PII fully.
 
 I have also made minor changes where it won't automatically change for name if the download fails.
 The name issue has been solved. I've kept the --search-name flag if it evers becomes needed again.
+Now you can create a csv file for the data available for a single subject. 
+Just provide the sdanid, the mrn (in the --not-robin flag).
 
 
