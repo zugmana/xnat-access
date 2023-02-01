@@ -96,6 +96,7 @@ def main():
         dosnapshotsubject = False
         dobids = args.dobids
         MRNid = args.MRNid
+    #just setting some options
     if dosnapshot and  isinstance(sdanid, list):
         dosnapshotsubject = True
         download = False
@@ -106,8 +107,8 @@ def main():
         search_robin = True
     else :
         search_robin = False
-            
-    #print(" ".join(sdanid).split(" "))
+    if search_name:
+        search_robin = False
     sdanid = " ".join(sdanid).split(" ")
     while "" in sdanid:
         sdanid.remove("")
@@ -125,7 +126,6 @@ def main():
         print ("current user is {}".format(user))
         password = getpass.getpass(prompt="Please enter Password : ")
     with xnat.connect("https://fmrif-xnat.nimh.nih.gov", user=user, password=password) as xsession :
-        #os.environ["TMP"]
         if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
             print("WARNING : tempfile not specified by user. Please consider setting your TMP path before running this script" )
             print("Please type : export TMP=/home/{}/tmp or some other approapriate path.".format(getpass.getuser()))
@@ -158,11 +158,14 @@ def main():
         
         if dosnapshotsubject :
             for idd,i in enumerate(sdanid) :
-                dbsnapshot = checkdatabasesubject(xsession, project, i, MRNid[idd])
-                if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
-                    dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
-                else:
-                    dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
+                try :
+                    dbsnapshot = checkdatabasesubject(xsession, project, i, MRNid[idd])
+                    if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
+                        dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
+                    else:
+                        dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
+                except KeyError:
+                    print("subject:{} not in this XNAT project".format(sdanid))
         if download :
             #set up temp folder to work on
             #tempfile.tempdir=tempfile.gettempdir()
@@ -182,17 +185,18 @@ def main():
                             FirstName = dbsearched.loc[0,4]
                         else :
                             MRN = MRNid[idd]
-                        #try: 
-                        download_dcm(xsession, project, MRN, i, date, SeriesName, tempdir, unzip )
-                        if keepdicom :
-                            downloaddirlocal = os.path.join(downloaddir,"dicom")
-                            anonymize(tempdir,downloaddirlocal, i)
-                        else :
-                            downloaddirlocal = os.path.join(downloaddir,"nifti")
-                            convert2nii(tempdir,downloaddirlocal, i)
-                        #except :
+                        try: 
+                            download_dcm(xsession, project, MRN, i, date, SeriesName, tempdir, unzip )
+                            if keepdicom :
+                                downloaddirlocal = os.path.join(downloaddir,"dicom")
+                                anonymize(tempdir,downloaddirlocal, i)
+                            else :
+                                downloaddirlocal = os.path.join(downloaddir,"nifti")
+                                convert2nii(tempdir,downloaddirlocal, i)
+                        except :
                         #    search_name = True
-                        #    print("Error downloading using MRN.")
+                            print("Error downloading using MRN.")
+                            print("subject:{} not in this XNAT project".format(sdanid))
                         if search_name :
                             print ("Downloading by Name")
                             
