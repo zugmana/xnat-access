@@ -27,7 +27,7 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24573"] #"24573","24590"]
+        sdanid = ["24573","24590"]
         #sdanid = False
         date = "2023"
         download = True
@@ -38,7 +38,7 @@ def main():
         downloaddir = "/EDB/SDAN/temp/test6month"
         user = None
         password = None
-        MRNid = ["8297769"]#["8297769","8317732"]
+        MRNid = ["8297769","8317732"]
         dosnapshotsubject = True
         search_robin = True
         dobids = False
@@ -72,7 +72,7 @@ def main():
         parser.add_argument('--dobids', action='store_true',dest='dobids',
                             help='Export a BIDS directory.')
         parser.set_defaults(dobids = False)
-        parser.add_argument('--not-robin', nargs='+', action='store',dest='MRNid',
+        parser.add_argument('--not-robin', nargs='+', type=str, action='store',dest='MRNid',
                             help="""Do not use robin id. In this case provide the MRN manually with no "-".
                             You can also use this with other ID (i.e.: NDAR GUID). In this case the data will use the id provided.
                             Only use this if you are sure it is safe to do so.""")
