@@ -107,7 +107,18 @@ def main():
     else :
         search_robin = False
             
-
+    #print(" ".join(sdanid).split(" "))
+    sdanid = " ".join(sdanid).split(" ")
+    while "" in sdanid:
+        sdanid.remove("")
+    while " " in sdanid:
+        sdanid.remove(" ")
+    if MRNid is not None:
+        MRNid = " ".join(MRNid).split(" ")
+        while "" in sdanid:
+            MRNid.remove("")
+        while " " in sdanid:
+            MRNid.remove(" ")
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
         print (".netrc file not found. Prompting for username and password")
         user = getpass.getuser()
