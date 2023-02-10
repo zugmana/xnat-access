@@ -27,19 +27,19 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24573","24590"]
+        sdanid = ["24509","24573"]
         #sdanid = False
-        date = "2023"
+        date = ["2023","02-07-2023"]
         download = True
         SeriesName = [""]
         unzip = True
-        keepdicom = False
+        keepdicom = True
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/test6month"
+        downloaddir = "/EDB/SDAN/temp/test02-10"
         user = None
         password = None
-        MRNid = ["8297769","8317732"]
-        dosnapshotsubject = True
+        MRNid = None 
+        dosnapshotsubject = False
         search_robin = True
         dobids = False
         
@@ -49,13 +49,13 @@ def main():
         parser.add_argument('-v', '--version', action='version',
                     version='version: {}'.format(__version__))
         parser.add_argument('-i', '--id', nargs='+',dest="id", action='store', type=str, required=False,
-                            help='id of subject ')
+                            help='id of subject or list of subjects')
         parser.set_defaults(id=False)
         parser.add_argument('-o','--output', action='store', type=str, required=True,
                             help='output path.')
-        parser.add_argument('-d', '--date',action='store', dest="date", type=str, required=False,
-                            help='Session Date in mm-dd-yyyy (i.e.: 12-30-2022')        
-        parser.set_defaults(date="")
+        parser.add_argument('-d', '--date', nargs='+',action='store', dest="date", type=str, required=False,
+                            help='Session Date in mm-dd-yyyy (i.e.: 12-30-2022).')        
+        parser.set_defaults(date=[""])
         parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot',
                             help='save a table with info of data stored in the project.')
         parser.set_defaults(dosnapshot=False)
@@ -120,6 +120,23 @@ def main():
             MRNid.remove("")
         while " " in sdanid:
             MRNid.remove(" ")
+    if all([x=="" for x in date]):
+        
+        if sdanid != False and len(sdanid) != len(date):
+            date = [""]*len(sdanid)
+    else :
+        date = " ".join(date).split(" ")
+        while date[-1] == "" :
+            date = date[:-1]
+        while date[-1] == " ":
+            date = date[:-1]
+        if sdanid != False and len(sdanid) != len(date):
+            print("Number of dates and id is different. Will search without date for the last ids")
+            diffdates = len(sdanid) - len(date)
+            if diffdates >= 1:
+                date = date + [""]*diffdates
+            elif diffdates < 0: 
+                sys.exit("You provided more dates than subjects. Double check what you are doing")
     if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
         print (".netrc file not found. Prompting for username and password")
         user = getpass.getuser()
@@ -186,7 +203,7 @@ def main():
                         else :
                             MRN = MRNid[idd]
                         try: 
-                            download_dcm(xsession, project, MRN, i, date, SeriesName, tempdir, unzip )
+                            download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip )
                             if keepdicom :
                                 downloaddirlocal = os.path.join(downloaddir,"dicom")
                                 anonymize(tempdir,downloaddirlocal, i)
@@ -200,7 +217,7 @@ def main():
                         if search_name :
                             print ("Downloading by Name")
                             
-                            download_dcmname(xsession, project, FirstName, LastName, i, date, SeriesName, tempdir, unzip)
+                            download_dcmname(xsession, project, FirstName, LastName, i, date[idd], SeriesName, tempdir, unzip)
                             if keepdicom :
                                 downloaddirlocal = os.path.join(downloaddir,"dicom")
                                 anonymize(tempdir,downloaddirlocal, i)
@@ -213,7 +230,7 @@ def main():
                     if not search_robin :
                         print ("you cannot look by date without robin. Data would keep MRN")
                         sys.exit("ERROR")
-                    sdanid = download_dcm_noid( xsession, project, [date], SeriesName, tempdir, unzip)
+                    sdanid = download_dcm_noid( xsession, project, date, SeriesName, tempdir, unzip)
                     for i in sdanid :
                         if keepdicom :
                             downloaddirlocal = os.path.join(downloaddir,"dicom")
@@ -224,6 +241,7 @@ def main():
                 
                 if dobids :
                     makebids(downloaddirlocal,tempdir, True)
-
+        
+          
 if __name__ == '__main__':
     main()

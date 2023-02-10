@@ -256,7 +256,9 @@ def move_to_dest(tempdir,finaldir):
     subprocess.run(["mv {}/* {}".format(tempdir,finaldir)], shell=True, stdout=subprocess.DEVNULL)
     
 def simplifystring(S):  
-    special_chars = [' ', '-', '.', '+', '(', ')', '/',':']
+    special_chars = [" ", "-", ".", "+", "(', ')", "/",":"]
     for c in special_chars:
-        S = S.replace(c, '-')
+        S = S.replace(c, "-")
+    while '--' in S:
+        S = S.replace("--","-")
     return S
