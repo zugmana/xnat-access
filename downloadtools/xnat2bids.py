@@ -1283,7 +1283,7 @@ def main() :
                         #find the first fmap before this run.
                         fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] > seriesnum)].iloc[0]["B0-identifier"]
                         D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = fmap_opposite
-                        intendedfor = os.path.join('bids::',sdan_id,'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
+                        intendedfor = os.path.join('bids::{}'.format(sdan_id),'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
                                                                      D[sdan_id][acquisition_date].loc[i,'datatype'], 
                                                                      '{}.nii.gz'.format(D[sdan_id][acquisition_date].loc[i,'newfnam']))
                         #have to for loop for some reason
