@@ -98,6 +98,8 @@ def sortMultiEcho(allFileNames,path): # ========================================
     # Sort the DICOM files from the working directory
     dicomHdr     = pydicom.read_file(allFileNames[0], stop_before_pixels=True)
     nImages      = int      (returnTagValue(dicomHdr, ('0020','1002')))
+    if returnTagValue(dicomHdr, ('0020','0105')) is None :
+        sys.exit("skipping")
     nRepetitions = int      (returnTagValue(dicomHdr, ('0020','0105')))
     nSlices      = int      (returnTagValue(dicomHdr, ('0021','104f')))
     EchoTime0    = float    (returnTagValue(dicomHdr, ('0018','0081')))
