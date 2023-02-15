@@ -9,11 +9,32 @@ import os
 import subprocess
 import pandas as pd
 import pydicom
+from shutil import copy2
 #import xnat
+def downloadphysio(xobject,downloadpath):
+    #splitpath = os.path.split(downloadpath)
+    print(xobject)
+    #file = splitpath[1].replace("tgz","_physio.tsv")
+    physiopath = os.path.join(downloadpath,"physio")
+    os.makedirs(physiopath, exist_ok = True)
+    for r in xobject.resources.values() :
+        for file in r.files.values():
+            if "ECG" in file.data["Name"] :
+                print("found physio file {}".format(file.data["Name"]))
+                file.download(os.path.join(physiopath,file.data["Name"]))
+            if "Resp" in file.data["Name"] :
+                print("found physio file {}".format(file.data["Name"]))
+                file.download(os.path.join(physiopath,file.data["Name"]))
+            else :
+                print("Description file {}".format(file.data["Name"]))
+                file.download(os.path.join(physiopath,file.data["Name"]))
+
+
 def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir, unzip) :
     #print(xmrn)
     xproject = xsession.projects[project]
     xnat_subject = xproject.subjects[xmrn]
+    count = 0
     for xsession in xnat_subject.experiments.values() :
         ses_date = xsession.date
         #print(ses_date)
@@ -28,15 +49,18 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
                       os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                       downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                   "{}_{}.tgz".format(xsname,xsnumber))
-                      #print(downloadpath)
                       xscan.download(downloadpath)
+                      count = count + 1
+                      
                       if unzip : 
                           extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                       "{}_{}".format(xsname,xsnumber))
-
                           subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
                           subprocess.run(["sortme {}".format(extractpath)], shell=True)
-
+          if count > 0 :
+              downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"))
+              downloadphysio(xsession,downloadpath)
+            
 def checkdatabase(xsession, project) :
     #count = 0
     xproject = xsession.projects[project]
@@ -142,7 +166,10 @@ def convert2nii(path_dcm, downloaddir, sdanid) :
             print(root, "converting")
             os.makedirs(root.replace(path_dcm,downloaddir), exist_ok=True)
             subprocess.run(["dcm2niix -f 'sub-{}_%f' -z y -o {} {} ".format(sdanid,root.replace(path_dcm,downloaddir),root)], shell = True)
-    
+        if "physio" in root :
+            for f in files :
+                print(os.path.join(root,f))
+                copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
 
 def processString(txt):
   specialChars = "!#$%^&*()" 

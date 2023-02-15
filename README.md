@@ -45,4 +45,24 @@ The name issue has been solved. I've kept the --search-name flag if it evers bec
 Now you can create a csv file for the data available for a single subject. 
 Just provide the sdanid, the mrn (in the --not-robin flag).
 
+NEW CHANGES v 0.4 :
 
+Added Physio (HR and RR) from the scanner.
+This is also added to the --dobids function. 
+If you use the flag you should have the tsv and the required json.
+The raw physio will be inside the nifti folder.
+Check carefully!
+Added the new MBME and Dwell to the dobids function.
+The dobids folder now passes the bids validator except for the unknown folder (see below)
+The dobids will now also output a dataset_description.json. 
+This has an acknowledgment to this repository. 
+Please play fair and keep the acknowledgment if you are publishing a dataset. ;-) 
+You can now pass lists of ids and dates.
+This is usefull to loop without having to put your password all the time.
+########
+For People that get "unkwnon" output in bids this is most likely files that are not needed
+such as localizer scans or other reconstructions.
+You can check what they are in the SeriesDescription files of the accompaining json.
+If you run bidsvalidator these files will result in an error, but I have decided
+to keep this here. You can manually remove them after you inspect and make sure
+they are not needed.

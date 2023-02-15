@@ -27,21 +27,21 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24509","24573"]
+        sdanid = ["24573","24475", "24522","24509","24518"]
         #sdanid = False
-        date = ["2023","02-07-2023"]
+        date = [""]#["2023","02-07-2023"]
         download = True
         SeriesName = [""]
         unzip = True
-        keepdicom = True
+        keepdicom = False
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/test02-10"
+        downloaddir = "/EDB/SDAN/temp/test02-14-2"
         user = None
         password = None
         MRNid = None 
         dosnapshotsubject = False
         search_robin = True
-        dobids = False
+        dobids = True
         
         #os.environ["TMP"] = "/EDB/SDAN/temp/"
     else :
@@ -213,7 +213,7 @@ def main():
                         except :
                         #    search_name = True
                             print("Error downloading using MRN.")
-                            print("subject:{} not in this XNAT project".format(i))
+                            print("subject:{} Check if this subject is in XNAT project {}".format(i, project))
                         if search_name :
                             print ("Downloading by Name")
                             

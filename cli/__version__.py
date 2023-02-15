@@ -5,4 +5,4 @@ Created on Tue Oct 11 15:16:22 2022
 
 @author: zugmana2
 """
-__version__ ='0.3.1.4'
+__version__ ='0.4.0'
