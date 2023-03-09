@@ -59,6 +59,10 @@ This has an acknowledgment to this repository.
 Please play fair and keep the acknowledgment if you are publishing a dataset. ;-) 
 You can now pass lists of ids and dates.
 This is usefull to loop without having to put your password all the time.
+NEW CHANGES v 0.4.1 :
+Change some minor way on the naming of dicom files. This was causing some trouble for AFNI users.
+
+
 ########
 For People that get "unkwnon" output in bids this is most likely files that are not needed
 such as localizer scans or other reconstructions.

@@ -50,7 +50,7 @@ def main():
                     version='version: {}'.format(__version__))
         parser.add_argument('-i', '--id', nargs='+',dest="id", action='store', type=str, required=False,
                             help='id of subject or list of subjects')
-        parser.set_defaults(id=False)
+        parser.set_defaults(id=None)
         parser.add_argument('-o','--output', action='store', type=str, required=True,
                             help='output path.')
         parser.add_argument('-d', '--date', nargs='+',action='store', dest="date", type=str, required=False,
@@ -109,11 +109,14 @@ def main():
         search_robin = False
     if search_name:
         search_robin = False
-    sdanid = " ".join(sdanid).split(" ")
-    while "" in sdanid:
-        sdanid.remove("")
-    while " " in sdanid:
-        sdanid.remove(" ")
+    if sdanid is not None :
+        sdanid = " ".join(sdanid).split(" ")
+        while "" in sdanid:
+            sdanid.remove("")
+        while " " in sdanid:
+            sdanid.remove(" ")
+    else :
+        sdanid = False
     if MRNid is not None:
         MRNid = " ".join(MRNid).split(" ")
         while "" in sdanid:
@@ -158,14 +161,14 @@ def main():
             dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[a-z]+","", regex=True)
             dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[A-Z]+","", regex=True)
             dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(",","")
-            dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce")
+            dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce", downcast="integer")
             dbsnapshot = checkdatabase(xsession, project)
             dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot-xnatpartial.csv"),index = False)
-            dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(float)
-            dbsnapshot = dbsnapshot.merge(dbsearched,on= "subjects")
+            dbsnapshot["subjects"] = pd.to_numeric(dbsnapshot["subjects"],errors = "coerce", downcast="integer")
+            dbsnapshot = dbsnapshot.merge(dbsearched,on= "subjects",how="inner")
             dbsnapshot = dbsnapshot.rename(columns={0: "sdanid", 1: "MRN", 2: "DOB",3: "Last Name", 4: "First Name" })
             dbsnapshot.drop([5,6,7], axis = 1, inplace = True)
-            dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(int)
+            #dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(int)
             dbsnapshot = dbsnapshot.reindex(columns= ['sdanid', 'MRN',"AccessionNumber",
                    'DOB', 'Last Name', 'First Name','seriesName', 'uri', 'date-series', 'date-session'])
             os.makedirs(os.path.join(downloaddir),  exist_ok = True) 

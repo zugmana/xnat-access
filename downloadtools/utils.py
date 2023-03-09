@@ -10,6 +10,8 @@ import subprocess
 import pandas as pd
 import pydicom
 from shutil import copy2
+import re
+from natsort import natsorted
 #import xnat
 def downloadphysio(xobject,downloadpath):
     #splitpath = os.path.split(downloadpath)
@@ -42,10 +44,10 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
           for xscan in xsession.scans.values() :
               xsname =  xscan.series_description
               if any(series in xsname for series in seriesName): 
-                  xsname = processString(xsname)
+                  xsname = simplifystring(xsname)
                   xsnumber = xscan.id
                   if xsname not in ["Requisition", "Screen Save"] :
-                      xsname = simplifystring(xsname)
+                      #xsname = simplifystring(xsname)
                       os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                       downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                   "{}_{}.tgz".format(xsname,xsnumber))
@@ -79,6 +81,7 @@ def checkdatabase(xsession, project) :
                 try :
                     AccessionNumber = xscan.dicom_dump(fields = "AccessionNumber")[0]["value"]
                     PID = xscan.dicom_dump(fields = "PatientID")[0]["value"]
+                    PID = remove_non_numbers(PID)
                 except :
                     AccessionNumber = 99
                 dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(PID), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
@@ -142,11 +145,14 @@ def anonymize(path_dcm, downloaddir, sdanid) :
     #print(os.path.join(path_dcm,"sub-{}".format(sdanid)))
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
        #print(dirs)
-       count = 0
+       count = 1
+       if len(files) > 0:
+           files = natsorted(files)
        for file in files:
           #print(file)
           if file.endswith("dcm"):
              paths.append(os.path.join(root, file))
+             
              #print("working on file: {}".format(file))
              ds = pydicom.filereader.dcmread(os.path.join(root, file))
              #print(ds.PatientName)
@@ -156,7 +162,9 @@ def anonymize(path_dcm, downloaddir, sdanid) :
              #SN = ds.SeriesName 
              #print(ds.PatientName)
              os.makedirs(root.replace(path_dcm,downloaddir), exist_ok=True)
+
              ds.save_as(os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count)))
+             print("{} to {}".format(os.path.join(root, file),os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count))))
              count = count+1
              #subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
        
@@ -171,11 +179,6 @@ def convert2nii(path_dcm, downloaddir, sdanid) :
                 print(os.path.join(root,f))
                 copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
 
-def processString(txt):
-  specialChars = "!#$%^&*()" 
-  for specialChar in specialChars:
-    txt = txt.replace(specialChar, '')
-  return txt
 
 def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
     #print(xmrn)
@@ -212,11 +215,11 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
                   xsname =  xscan.series_description
                   print(xsname)
                   if any(series in xsname for series in seriesName): 
-                        xsname = processString(xsname)
+                        xsname = simplifystring(xsname)
                         xsnumber = xscan.id
                         print(xsnumber)
                         if xsname not in ["Requisition", "Screen Save"] :
-                            xsname = simplifystring(xsname)
+                            #xsname = simplifystring(xsname)
                             os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                             downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                         "{}_{}.tgz".format(xsname,xsnumber))
@@ -251,10 +254,10 @@ def download_dcmname(xsession, project, FirstName, LastName, sdanid, date, serie
                     for xscan in xsession.scans.values() :
                       xsname =  xscan.series_description
                       if any(series in xsname for series in seriesName):
-                          xsname = processString(xsname)
+                          xsname = simplifystring(xsname)
                           xsnumber = xscan.id
                           if xsname not in ["Requisition", "Screen Save"] :
-                              xsname = simplifystring(xsname)
+                              #xsname = simplifystring(xsname)
                               os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                               downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                           "{}_{}.tgz".format(xsname,xsnumber))
@@ -283,9 +286,19 @@ def move_to_dest(tempdir,finaldir):
     subprocess.run(["mv {}/* {}".format(tempdir,finaldir)], shell=True, stdout=subprocess.DEVNULL)
     
 def simplifystring(S):  
-    special_chars = [" ", "-", ".", "+", "(', ')", "/",":"]
+    special_chars = [" ", "-", ".", "+", "(', ')", "/",":","!","#",
+                     "$","%","^","&","*"]
     for c in special_chars:
         S = S.replace(c, "-")
     while '--' in S:
         S = S.replace("--","-")
     return S
+
+def remove_non_numbers(string):
+    return re.sub('[^0-9]+', '', string)
+
+# def processString(txt):
+#   specialChars = "!#$%^&*()" 
+#   for specialChar in specialChars:
+#     txt = txt.replace(specialChar, '')
+#   return txt
