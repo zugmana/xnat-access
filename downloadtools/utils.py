@@ -146,6 +146,10 @@ def anonymize(path_dcm, downloaddir, sdanid) :
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
        #print(dirs)
        count = 1
+       if "physio" in root :
+           for f in files :
+               print(os.path.join(root,f))
+               copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
        if len(files) > 0:
            files = natsorted(files)
        for file in files:
@@ -167,6 +171,7 @@ def anonymize(path_dcm, downloaddir, sdanid) :
              print("{} to {}".format(os.path.join(root, file),os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count))))
              count = count+1
              #subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
+
        
 def convert2nii(path_dcm, downloaddir, sdanid) :
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
