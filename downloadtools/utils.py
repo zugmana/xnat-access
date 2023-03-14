@@ -168,7 +168,7 @@ def anonymize(path_dcm, downloaddir, sdanid) :
              os.makedirs(root.replace(path_dcm,downloaddir), exist_ok=True)
 
              ds.save_as(os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count)))
-             print("{} to {}".format(os.path.join(root, file),os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count))))
+             #print("{} to {}".format(os.path.join(root, file),os.path.join(root.replace(path_dcm,downloaddir),"sub-{}_{}_{}_rec-anonymized.dcm".format(sdanid,os.path.basename(root),count))))
              count = count+1
              #subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
 
@@ -291,8 +291,8 @@ def move_to_dest(tempdir,finaldir):
     subprocess.run(["mv {}/* {}".format(tempdir,finaldir)], shell=True, stdout=subprocess.DEVNULL)
     
 def simplifystring(S):  
-    special_chars = [" ", "-", ".", "+", "(', ')", "/",":","!","#",
-                     "$","%","^","&","*"]
+    special_chars = [" ", "-", ".", "+", "(", ")", "/",":","!","#",
+                     "$","%","^","&","*","'","`"]
     for c in special_chars:
         S = S.replace(c, "-")
     while '--' in S:
