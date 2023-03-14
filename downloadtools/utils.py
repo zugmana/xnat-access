@@ -148,8 +148,11 @@ def anonymize(path_dcm, downloaddir, sdanid) :
        count = 1
        if "physio" in root :
            for f in files :
-               print(os.path.join(root,f))
-               copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
+               
+               os.makedirs(os.path.join(root.replace(path_dcm,downloaddir)),exist_ok=True)
+               
+               copy2(os.path.join(root,f),
+                     os.path.join(root.replace(path_dcm,downloaddir),f))
        if len(files) > 0:
            files = natsorted(files)
        for file in files:
