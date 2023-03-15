@@ -46,7 +46,7 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
               if any(series in xsname for series in seriesName): 
                   xsname = simplifystring(xsname)
                   xsnumber = xscan.id
-                  if xsname not in ["Requisition", "Screen Save"] :
+                  if xsname not in ["REQUISITION", "SCREEN-SAVE"] :
                       #xsname = simplifystring(xsname)
                       os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                       downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
@@ -148,9 +148,9 @@ def anonymize(path_dcm, downloaddir, sdanid) :
        count = 1
        if "physio" in root :
            for f in files :
-               
+               #print(os.path.join(root,f))
                os.makedirs(os.path.join(root.replace(path_dcm,downloaddir)),exist_ok=True)
-               
+               #print(os.path.join(root.replace(path_dcm,downloaddir),f))
                copy2(os.path.join(root,f),
                      os.path.join(root.replace(path_dcm,downloaddir),f))
        if len(files) > 0:
@@ -226,7 +226,7 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip) :
                         xsname = simplifystring(xsname)
                         xsnumber = xscan.id
                         print(xsnumber)
-                        if xsname not in ["Requisition", "Screen Save"] :
+                        if xsname not in ["REQUISITION", "SCREEN-SAVE"] :
                             #xsname = simplifystring(xsname)
                             os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                             downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
@@ -264,7 +264,7 @@ def download_dcmname(xsession, project, FirstName, LastName, sdanid, date, serie
                       if any(series in xsname for series in seriesName):
                           xsname = simplifystring(xsname)
                           xsnumber = xscan.id
-                          if xsname not in ["Requisition", "Screen Save"] :
+                          if xsname not in ["REQUISITION", "SCREEN-SAVE"] :
                               #xsname = simplifystring(xsname)
                               os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                               downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
@@ -300,6 +300,7 @@ def simplifystring(S):
         S = S.replace(c, "-")
     while '--' in S:
         S = S.replace("--","-")
+    S = S.upper()
     return S
 
 def remove_non_numbers(string):

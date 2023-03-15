@@ -26,9 +26,9 @@ def printHelp(argv, description): # ===========================================
     print(description)
     print("")
     print("Usage:")
-    print("nidb2bids -n <dirin> -b <dirout>")
+    print("xnat2bids -n <dirin> -b <dirout>")
     print("")
-    print("-n : Input NIDB directory, with .nii.gz and .json files.")
+    print("-n : Input XNAT nifti directory, with .nii.gz and .json files.")
     print("-b : Output BIDS directory.")
     print("-r : Renumber entities as 1, 2, 3, etc.")
     print("")
@@ -141,15 +141,31 @@ def swapfields(json): # =======================================================
     return
 
 def findphysiotype(path):
+    print(path)
+    x = None
+    y = None
     with open(path,'r') as file:
         lines = file.readlines()
         for l in lines:
             #print(l)
+            #print(l)
             if "Series De" in l:
                 #print(l)
+                l = l.strip()
+                
                 x = l.split(":")[-1]
+                #print(x)
                 x = simplifystring(x)
-    return x
+                #print(x)
+            # this is hear just if in the future its needed to match RT with scans.
+            # series UID are not by default in the jsons. Might be considered PII. 
+            # Would need to add and then remove. For now it is not needed.
+            if "Series Instance UID" in l:
+                #print(l)
+                l = l.strip()
+                y = l.split(":")[-1]
+        #print(x)
+    return x,y
 #%%
 # =============================================================================
 #   MAIN FUNCTION
@@ -159,8 +175,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/test02-14-2/nifti"
-        dirout="/EDB/SDAN/temp/test02-14-2/BIDS"
+        dirin="/EDB/SDAN/temp/test03-14/nifti"
+        dirout="/EDB/SDAN/temp/test03-14/BIDS"
         renumber = True
     else :       
         args = parseArguments(sys.argv)
@@ -217,7 +233,7 @@ def main() :
                         P[sdan_id][acquisition_date].loc[f,'oldpath'] =os.path.join(curdir,f)
                         matching = "_".join(f.split("_")[2:4])
                         matchingfile = [i for i in files if i.startswith(matching)][0]
-                        P[sdan_id][acquisition_date].loc[f,'seriesdescription'] = findphysiotype(os.path.join(curdir,matchingfile))
+                        [P[sdan_id][acquisition_date].loc[f,'seriesdescription'],P[sdan_id][acquisition_date].loc[f,'seriesuid']] = findphysiotype(os.path.join(curdir,matchingfile))
                         
             else :
                 
