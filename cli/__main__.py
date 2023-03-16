@@ -205,18 +205,14 @@ def main():
                             FirstName = dbsearched.loc[0,4]
                         else :
                             MRN = MRNid[idd]
-                        try: 
-                            download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip )
-                            if keepdicom :
-                                downloaddirlocal = os.path.join(downloaddir,"dicom")
-                                anonymize(tempdir,downloaddirlocal, i)
-                            else :
-                                downloaddirlocal = os.path.join(downloaddir,"nifti")
-                                convert2nii(tempdir,downloaddirlocal, i)
-                        except :
-                        #    search_name = True
-                            print("Error downloading using MRN.")
-                            print("subject:{} Check if this subject is in XNAT project {}".format(i, project))
+                         
+                        download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip )
+                        if keepdicom :
+                            downloaddirlocal = os.path.join(downloaddir,"dicom")
+                            anonymize(tempdir,downloaddirlocal, i)
+                        else :
+                            downloaddirlocal = os.path.join(downloaddir,"nifti")
+                            convert2nii(tempdir,downloaddirlocal, i)
                         if search_name :
                             print ("Downloading by Name")
                             

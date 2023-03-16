@@ -15,6 +15,7 @@ from natsort import natsorted
 #import xnat
 def downloadphysio(xobject,downloadpath):
     #splitpath = os.path.split(downloadpath)
+    
     print(xobject)
     #file = splitpath[1].replace("tgz","_physio.tsv")
     physiopath = os.path.join(downloadpath,"physio")
@@ -35,33 +36,42 @@ def downloadphysio(xobject,downloadpath):
 def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir, unzip) :
     #print(xmrn)
     xproject = xsession.projects[project]
-    xnat_subject = xproject.subjects[xmrn]
-    count = 0
-    for xsession in xnat_subject.experiments.values() :
-        ses_date = xsession.date
-        #print(ses_date)
-        if date in ses_date.strftime("%m-%d-%Y") : # if date undefined - check all sessions          
-          for xscan in xsession.scans.values() :
-              xsname =  xscan.series_description
-              if any(series in xsname for series in seriesName): 
-                  xsname = simplifystring(xsname)
-                  xsnumber = xscan.id
-                  if xsname not in ["REQUISITION", "SCREEN-SAVE"] :
-                      #xsname = simplifystring(xsname)
-                      os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
-                      downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                  "{}_{}.tgz".format(xsname,xsnumber))
-                      xscan.download(downloadpath)
-                      count = count + 1
-                      
-                      if unzip : 
-                          extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                                      "{}_{}".format(xsname,xsnumber))
-                          subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
-                          subprocess.run(["sortme {}".format(extractpath)], shell=True)
-          if count > 0 :
-              downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"))
-              downloadphysio(xsession,downloadpath)
+    try:
+        xnat_subject = xproject.subjects[xmrn]
+   
+
+        count = 0
+        exclude_strings = ["REQUISITION", "SCREEN-SAVE","SAVE",".txt","README"]
+        for xsession in xnat_subject.experiments.values() :
+            ses_date = xsession.date
+            #print(ses_date)
+            if date in ses_date.strftime("%m-%d-%Y") : # if date undefined - check all sessions          
+              for xscan in xsession.scans.values() :
+                  xsname =  xscan.series_description
+                  if any(series in xsname for series in exclude_strings):
+                      continue
+                  if any(series in xsname for series in seriesName): 
+                    xsname = simplifystring(xsname)
+                    xsnumber = xscan.id
+                      #if xsname not in ["REQUISITION", "SCREEN-SAVE"] :
+                          #xsname = simplifystring(xsname)
+                    os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
+                    downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                "{}_{}.tgz".format(xsname,xsnumber))
+                    xscan.download(downloadpath)
+                    count = count + 1
+                    
+                    if unzip : 
+                        extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
+                                                    "{}_{}".format(xsname,xsnumber))
+                        subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
+                        subprocess.run(["sortme {}".format(extractpath)], shell=True)
+              if count > 0 :
+                  downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"))
+                  downloadphysio(xsession,downloadpath)
+    except:
+         print("Did not find this subject in this collection.")
+         print("subject:{} Check if this subject is in XNAT project {}".format(sdanid, project))
             
 def checkdatabase(xsession, project) :
     #count = 0
