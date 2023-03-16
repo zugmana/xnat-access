@@ -72,6 +72,9 @@ def main():
         parser.add_argument('--dobids', action='store_true',dest='dobids',
                             help='Export a BIDS directory.')
         parser.set_defaults(dobids = False)
+        parser.add_argument('--physio', action='store_true',dest='physio',
+                            help='get physio data.')
+        parser.set_defaults(physio = False)
         parser.add_argument('--not-robin', nargs='+', type=str, action='store',dest='MRNid',
                             help="""Do not use robin id. In this case provide the MRN manually with no "-".
                             You can also use this with other ID (i.e.: NDAR GUID). In this case the data will use the id provided.
@@ -96,7 +99,16 @@ def main():
         dosnapshotsubject = False
         dobids = args.dobids
         MRNid = args.MRNid
+        physio = args.physio
     #just setting some options
+    if physio :
+        print("\n")
+        print("############################")
+        print("###########WARNING##########")
+        print("The data inside the physio subdirectory in nifti will not be anonymized")
+        print("Please inspect your data carefully for any PII")
+        print("############################")
+        print("\n")
     if dosnapshot and  isinstance(sdanid, list):
         dosnapshotsubject = True
         download = False
@@ -206,7 +218,7 @@ def main():
                         else :
                             MRN = MRNid[idd]
                          
-                        download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip )
+                        download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip, physio )
                         if keepdicom :
                             downloaddirlocal = os.path.join(downloaddir,"dicom")
                             anonymize(tempdir,downloaddirlocal, i)
@@ -229,7 +241,7 @@ def main():
                     if not search_robin :
                         print ("you cannot look by date without robin. Data would keep MRN")
                         sys.exit("ERROR")
-                    sdanid = download_dcm_noid( xsession, project, date, SeriesName, tempdir, unzip)
+                    sdanid = download_dcm_noid( xsession, project, date, SeriesName, tempdir, unzip, physio)
                     for i in sdanid :
                         if keepdicom :
                             downloaddirlocal = os.path.join(downloaddir,"dicom")

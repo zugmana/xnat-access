@@ -61,7 +61,13 @@ You can now pass lists of ids and dates.
 This is usefull to loop without having to put your password all the time.
 NEW CHANGES v 0.4.1 :
 Change some minor way on the naming of dicom files. This was causing some trouble for AFNI users.
-
+NEW CHANGES v 0.4.4 :
+Bunch of minor fixes.
+Physio is now optional. It will only be downloaded if using the --physio flag.
+If you do choose to use physio please be mindfull that it will download a bunch of files
+without those files the physio data can not be matched to the scans. 
+The downside is that those contain PII. Please be mindfull of your data.
+I'm not responsible in any way if you misplace data or don't fully understand what you are doing.
 
 ########
 For People that get "unkwnon" output in bids this is most likely files that are not needed
