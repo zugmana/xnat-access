@@ -4,6 +4,7 @@
 Created on Fri Sep  4 16:57:35 2020
 
 @author: winkleram
+Modified by Azugman
 """
 
 import os
@@ -61,7 +62,14 @@ def parseArguments(argv): # ===================================================
 
 def readjson(jsonfile): # =====================================================
     with open(jsonfile, 'r') as fp:
-        J = json.load(fp)
+        try:
+            J = json.load(fp)
+        except json.JSONDecodeError:
+            print("############################################################")
+            print("{} json is invalid - please check carefully".format(jsonfile))
+            print("Will skip json and associated files. Please check carefully.")
+            print("############################################################")
+            J = {}
     return J
 
 def writejson(J, jsonfile): # =================================================
@@ -166,6 +174,32 @@ def findphysiotype(path):
                 y = l.split(":")[-1]
         #print(x)
     return x,y
+
+
+
+def subtract_years_months(date):
+    # Generate a random number of years to subtract
+    #datenp = np.datetime64(date)
+    years_to_subtract = np.random.randint(80, max(date.year - 1850, 1))
+    months_to_subtract = np.random.randint(1, 13)
+    days_to_subtract = datetime.timedelta(
+        days=(years_to_subtract * 365 + months_to_subtract * 30))
+    new_date = date - days_to_subtract
+    #new_date = new_date.astype(datetime.datetime)
+
+    
+    return new_date,days_to_subtract
+def write_to_file(sessionpath,filename, acqtime):
+    # Check if the file exists
+    file_exists = os.path.isfile(sessionpath)
+    
+    # Open the file in append mode
+    with open(sessionpath, 'a') as f:
+        # If the file does not exist, add a header
+        if not file_exists:
+            f.write('filename\tacq_time\n')       
+        # Append the variables to the last line of the file
+        f.write(f'{filename}\t{acqtime}\n')
 #%%
 # =============================================================================
 #   MAIN FUNCTION
@@ -175,8 +209,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/test03-14/nifti"
-        dirout="/EDB/SDAN/temp/test03-14/BIDS"
+        dirin="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/nifti"
+        dirout="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/BIDS2"
         renumber = True
     else :       
         args = parseArguments(sys.argv)
@@ -242,7 +276,7 @@ def main() :
                     print(f)
         #             # Check if the current file could belong to BIDS and if it's a JSON
                     isfbids, oldfnam, fext = isbidsfile(f)
-                    if isfbids and fext == '.json':
+                    if isfbids and (fext == '.json'):
     
                         
         #                 # The info on the filename is not really useful - will get from json:
@@ -250,6 +284,8 @@ def main() :
                         
                         
                         J = readjson(os.path.join(curdir, f))
+                        if not J:
+                            continue
                         series_description = ''
                         acquisition_date   = curdir.split('/')[-2]
                         acquisition_date   = datetime.datetime.strptime(acquisition_date,'%m-%d-%Y')
@@ -1161,7 +1197,11 @@ def main() :
                 D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))
                 countses = 1
                 for acquisition_date in D[sdan_id]:
+                    if countses == 1:
+                       [dateano,ndates] = subtract_years_months(acquisition_date) 
                     #print(acquisition_date)
+                    D[sdan_id][acquisition_date]["anondate"] = D[sdan_id][acquisition_date]["acquisition_time"] - ndates
+                    D[sdan_id][acquisition_date]["ndays"] = ndates
                     D[sdan_id][acquisition_date]["run"] = D[sdan_id][acquisition_date].sort_values(
                          "acquisition_time",ascending=True).groupby(["taskstr","recstr","dirstr","modstr","acqstr"]).cumcount()+1
                     D[sdan_id][acquisition_date]["ses"] = countses
@@ -1186,6 +1226,8 @@ def main() :
                 D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))
                 countses = 1
                 for acquisition_date in D[sdan_id]:
+                    if countses == 1:
+                       [dateano,years,months] = subtract_years_months(acquisition_date) 
                     D[sdan_id][acquisition_date]["ses"] = pd.to_datetime(D[sdan_id][acquisition_date]["acquisition_time"]).dt.strftime(
                         '%Y-%m-%d')
                     D[sdan_id][acquisition_date]["run"] = pd.to_datetime(D[sdan_id][acquisition_date]["acquisition_time"]).dt.strftime(
@@ -1213,7 +1255,6 @@ def main() :
                     if mi == ma + 1:
                         mi = 1
         for sdan_id in D:
-            #print(sdan_id)
             for acquisition_date in D[sdan_id]:
                 #print(acquisition_date)
                 #sesdf = D[sdan_id][acquisition_date]
@@ -1252,6 +1293,23 @@ def main() :
                             else:
                                 print('Moving: {} -> {}'.format(oldfile, newfile))
                                 copy2(oldfile, newfile)
+                            if (iext == '.nii.gz'):
+                                print(oldfile)
+                                print("{} to {}".format(
+                                    D[sdan_id][acquisition_date].loc[oldfnam,"acquisition_time"],
+                                    D[sdan_id][acquisition_date].loc[oldfnam,"anondate"]))
+                                
+                                write_to_file(os.path.join(dirout,
+                                                       '{}'.format(sdan_id),
+                                                       'ses-{}'.format(
+                                                           D[sdan_id][acquisition_date].loc[oldfnam, 'ses']),
+                                                       "{}_ses-{}_scans.tsv".format(
+                                                           sdan_id, D[sdan_id][acquisition_date].loc[oldfnam, 'ses'])), 
+                                              "/".join(newfile.split("/")[-2:]),
+                                              D[sdan_id][acquisition_date].loc[oldfnam,"anondate"])
+                                write_to_file(os.path.join(dirout,"DONOTSHARE-PII-IS-HERE-scans.tsv"),newfile,
+                                              D[sdan_id][acquisition_date].loc[oldfnam,"ndays"].days)
+                                #add things here to save scans.tsv
     
 
         for sdan_id in D:

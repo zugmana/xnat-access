@@ -69,6 +69,9 @@ without those files the physio data can not be matched to the scans.
 The downside is that those contain PII. Please be mindfull of your data.
 I'm not responsible in any way if you misplace data or don't fully understand what you are doing.
 
+Included anonymized _scans.tsv to BIDS directory. This will anonymize the data by subtracting X number of days.
+The key is saved in the root directory. Be carefull not to share the key!!
+
 ########
 For People that get "unkwnon" output in bids this is most likely files that are not needed
 such as localizer scans or other reconstructions.
