@@ -100,8 +100,11 @@ def isbidsfile(filename): # ===================================================
     if fext in ['.json', '.nii', '.nii.gz', '.bvec', '.bval', '.tsv']:
         isit = True
     else:
-        isit = False
+        isit = False   
     fnam = os.path.basename(fnam)
+    nam = simplifystring(fnam)
+    if any(substring in nam for substring in ["screen","requisition"]):
+        isit = False
     return isit, fnam, fext
 
 def simplifystring(S):  # =====================================================
@@ -209,7 +212,7 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/nifti"
+        dirin="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/nifti/sub-21798"
         dirout="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/BIDS2"
         renumber = True
     else :       
@@ -273,7 +276,7 @@ def main() :
                 
                 # For each file in the current directory
                 for f in natsorted(files, alg=ns.IGNORECASE):
-                    print(f)
+                    #print(f)
         #             # Check if the current file could belong to BIDS and if it's a JSON
                     isfbids, oldfnam, fext = isbidsfile(f)
                     if isfbids and (fext == '.json'):
@@ -348,7 +351,7 @@ def main() :
                         #print(sesstr)
                         #print(runstr)
                         # ===== ANATOMY ===================================================
-                        print('Simplified SeriesDescription: {}'.format(series_description))
+                        #print('Simplified SeriesDescription: {}'.format(series_description))
                         if 'anatt1wmprage1mm' in series_description: # --------------------
                             # This is a T1w
                             datatype = 'anat'
@@ -1190,13 +1193,18 @@ def main() :
                         D[sdan_id][acquisition_date].loc[oldfnam,'echstr'] = echstr
                         D[sdan_id][acquisition_date].loc[oldfnam,'modstr'] = modstr
                         D[sdan_id][acquisition_date].loc[oldfnam,'acqstr'] = acqstr
-                        
+        
+        
 
         if renumber :
             for sdan_id in D :
-                D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))
+                #Sorting dates
+                D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))                
                 countses = 1
                 for acquisition_date in D[sdan_id]:
+                    #make sure scans are sorted.
+                    D[sdan_id][acquisition_date].sort_values(
+                                         "acquisition_time",ascending=True, inplace=True)
                     if countses == 1:
                        [dateano,ndates] = subtract_years_months(acquisition_date) 
                     #print(acquisition_date)
@@ -1226,6 +1234,9 @@ def main() :
                 D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))
                 countses = 1
                 for acquisition_date in D[sdan_id]:
+                    #make sure scans are sorted.
+                    D[sdan_id][acquisition_date].sort_values(
+                                         "acquisition_time",ascending=True, inplace=True)
                     if countses == 1:
                        [dateano,years,months] = subtract_years_months(acquisition_date) 
                     D[sdan_id][acquisition_date]["ses"] = pd.to_datetime(D[sdan_id][acquisition_date]["acquisition_time"]).dt.strftime(
@@ -1355,7 +1366,23 @@ def main() :
                         #print(ii)
                         seriesnum = ii["seriesnum"]
                         #find the first fmap before this run.
-                        fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] > seriesnum)].iloc[0]["B0-identifier"]
+                        try :
+                            fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] > seriesnum)].iloc[0]["B0-identifier"]
+                        except IndexError :
+                            print("#############################")
+                            print("fmap failed for {}".format(ii["newfnam"]))
+                            print("Will try to look for fieldmap before - expected after")
+                            print("Check this carefully")
+                            print("#############################")
+                            try :
+                                fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] < seriesnum)].iloc[-1]["B0-identifier"]
+                            except IndexError :
+                                print("#############################")
+                                print("fmap failed for {}".format(ii["newfnam"]))
+                                print("Could not solve fmap")
+                                print("You will need to add it manually")
+                                print("#############################")
+                                continue
                         D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = fmap_opposite
                         intendedfor = os.path.join('bids::{}'.format(sdan_id),'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
                                                                      D[sdan_id][acquisition_date].loc[i,'datatype'], 
