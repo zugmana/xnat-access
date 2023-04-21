@@ -152,7 +152,7 @@ def swapfields(json): # =======================================================
     return
 
 def findphysiotype(path):
-    print(path)
+    #print(path)
     x = None
     y = None
     with open(path,'r') as file:
@@ -212,8 +212,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/nifti/sub-21798"
-        dirout="/EDB/SDAN/sdanny/workingdata4/FoxFlanker-rest_v3/BIDS2"
+        dirin="/EDB/SDAN/temp/TMSpilot/nifti"
+        dirout="/EDB/SDAN/temp/TMSpilot/BIDS"
         renumber = True
     else :       
         args = parseArguments(sys.argv)
@@ -343,7 +343,7 @@ def main() :
                         datatype = '' # string to store the datatypeectory for this type of image
                         recstr   = '' # string to store the kind of reconstruction
                         dirstr   = '' # string to store the direction of phase enconding
-                        echstr   = None # strong to store the echo time
+                        echstr   = None # string to store the echo time
                         modstr   = '' # string to store the type of modality
                         acqstr   = '' #string to store acquisition
                         has_fmap   = 'no'
@@ -362,7 +362,15 @@ def main() :
                                 recstr = '_rec-orig'
                             has_fmap   = 'no'
                             multi_echo = False
-                            
+                        elif 'anatt1wmprage08' in series_description:
+                            datatype = 'anat'
+                            modstr   = '_T1w'
+                            if   'FILTERED_GEMS' in scan_options:
+                                recstr = '_rec-norm'
+                            else:
+                                recstr = '_rec-orig'
+                            has_fmap   = 'no'
+                            multi_echo = False
                         elif  'mprage'   in series_description or \
                             'anatomica'  in series_description or \
                             'fspgr'      in series_description or \
@@ -1175,11 +1183,13 @@ def main() :
             
                         
                         # For multi-echo data, get the echo time
-                        if datatype == 'func' and multi_echo and echo_time != '':
+                        if (datatype == 'func') and multi_echo and (echo_time != ''):
                             echstr = '_echo-{}'.format(echo_time)
                         # Messy fmap that might also have multiple echos This will need to be cleaned later manually.
-                        if datatype == 'fmap' and multi_echo and echo_time != '':
+                        elif (datatype == 'fmap') and multi_echo and (echo_time != ''):
                             echstr = '_echo-{}'.format(echo_time)
+                        # else:
+                        #     echstr = None
                         
                         #newfnam = '{}{}{}{}{}{}{}{}'.format(substr, sesstr, taskstr, 
                         #recstr, dirstr, runstr, echstr, modstr)
@@ -1194,7 +1204,6 @@ def main() :
                         D[sdan_id][acquisition_date].loc[oldfnam,'modstr'] = modstr
                         D[sdan_id][acquisition_date].loc[oldfnam,'acqstr'] = acqstr
         
-        
 
         if renumber :
             for sdan_id in D :
@@ -1204,31 +1213,49 @@ def main() :
                 for acquisition_date in D[sdan_id]:
                     #make sure scans are sorted.
                     D[sdan_id][acquisition_date].sort_values(
-                                         "acquisition_time",ascending=True, inplace=True)
+                                         ["acquisition_time","echstr"],ascending=True, inplace=True)
                     if countses == 1:
                        [dateano,ndates] = subtract_years_months(acquisition_date) 
                     #print(acquisition_date)
+                    # if multiecho epi keep only the first echo as epi and drop the rest as unknown.
+                    if len(D[sdan_id][acquisition_date].loc[(~D[sdan_id][acquisition_date]["echstr"].isnull()) 
+                                                                  & (D[sdan_id][acquisition_date]["modstr"] == "_epi")]) > 0:
+                        MEfmap = D[sdan_id][acquisition_date].loc[(~D[sdan_id][acquisition_date]["echstr"].isnull()) 
+                                                                      & (D[sdan_id][acquisition_date]["modstr"] == "_epi")]
+                        tounknown = MEfmap.loc[~(MEfmap.index.str.contains("e1"))].index
+                        tokeep    = MEfmap.loc[(MEfmap.index.str.contains("e1"))].index
+                        D[sdan_id][acquisition_date].loc[tounknown,"modstr"]   = "_unknown-epi"
+                        D[sdan_id][acquisition_date].loc[tokeep,"echstr"]      = None
+                        D[sdan_id][acquisition_date].loc[tounknown,"datatype"] = "unknown"
+                        D[sdan_id][acquisition_date].loc[tokeep,"acqstr"]      = "_acq-MBME"
+                        
                     D[sdan_id][acquisition_date]["anondate"] = D[sdan_id][acquisition_date]["acquisition_time"] - ndates
                     D[sdan_id][acquisition_date]["ndays"] = ndates
-                    D[sdan_id][acquisition_date]["run"] = D[sdan_id][acquisition_date].sort_values(
-                         "acquisition_time",ascending=True).groupby(["taskstr","recstr","dirstr","modstr","acqstr"]).cumcount()+1
+                    D[sdan_id][acquisition_date]["run"] = D[sdan_id][acquisition_date].groupby(["taskstr","recstr","dirstr","modstr","acqstr"]).cumcount()+1
                     D[sdan_id][acquisition_date]["ses"] = countses
-                     #renumberecho
+                    
+                    #renumberecho
                     if len(D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()]) > 0 :
                          echos = D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
                                  "echstr",ascending=True).groupby(["series_description","seriesnum"]).cumcount()+1
                          D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"echstr"] = "_echo-" + echos.astype(str)
-                         D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull(),"run"] = \
-                             D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
-                                  "acquisition_time",ascending=True).groupby(["seriesnum"]).ngroup()+1
+                         for g,gg in D[sdan_id][acquisition_date].loc[(~D[sdan_id][acquisition_date]["echstr"].isnull()) &
+                                                                      (D[sdan_id][acquisition_date]["modstr"] == "_bold")].groupby(["taskstr","recstr","dirstr","modstr","acqstr"]):
+                             #print(gg)
+                             D[sdan_id][acquisition_date].loc[gg.index,"run"] = gg.groupby(["seriesnum"]).ngroup()+1
+                         # for g,gg in D[sdan_id][acquisition_date].loc[(~D[sdan_id][acquisition_date]["echstr"].isnull()) 
+                         #                                              & (D[sdan_id][acquisition_date]["modstr"] == "_epi")].groupby(["taskstr","recstr","dirstr","modstr","acqstr","seriesnum"]):
+                         #     print(gg["run"])
+                             #print(D[sdan_id][acquisition_date].loc[gg.index,"run"])
+
                     D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["echstr"].isnull(),"echstr"] = ''
                     D[sdan_id][acquisition_date]["newfnam"] = D[sdan_id][acquisition_date]["substr"] + '_ses-' + D[sdan_id][acquisition_date]["ses"].astype(str) \
-                         + D[sdan_id][acquisition_date]["taskstr"] + D[sdan_id][acquisition_date]["acqstr"] + D[sdan_id][acquisition_date]["recstr"] + D[sdan_id][acquisition_date]["dirstr"] \
-                             + '_run-' + D[sdan_id][acquisition_date]["run"].astype(str) + D[sdan_id][acquisition_date]["echstr"] \
-                                + D[sdan_id][acquisition_date]["modstr"]
+                          + D[sdan_id][acquisition_date]["taskstr"] + D[sdan_id][acquisition_date]["acqstr"] + D[sdan_id][acquisition_date]["recstr"] + D[sdan_id][acquisition_date]["dirstr"] \
+                          + '_run-' + D[sdan_id][acquisition_date]["run"].astype(str) + D[sdan_id][acquisition_date]["echstr"] \
+                              + D[sdan_id][acquisition_date]["modstr"]
                     
                     countses = countses + 1
-#                  
+          
         else :
             for sdan_id in D :
                 D[sdan_id] = dict((sorted(D[sdan_id].items(), reverse=False)))
@@ -1248,7 +1275,7 @@ def main() :
                              + '_run-' + D[sdan_id][acquisition_date]["run"].astype(str) + D[sdan_id][acquisition_date]["echstr"] \
                                 + D[sdan_id][acquisition_date]["modstr"]
           
-          
+#         
         # Deal with the rare cases of identical new filenames (e.g. mag/phase images from old fieldmaps)
         for sdan_id in D:
             for acquisition_date in D[sdan_id]:
@@ -1289,26 +1316,26 @@ def main() :
                                 os.makedirs(newdir)
                             if (iext == '.json') and D[sdan_id][acquisition_date].loc[oldfnam,
                                                              'datatype'] == 'func':
-                                print('checking if need to add task name to json')
+                                #print('checking if need to add task name to json')
                                 
                                 J = readjson(oldfile)
                                 if 'TaskName' in J:
-                                    print("TaskName in json")
-                                    print('Moving: {} -> {}'.format(oldfile, newfile))
+                                    #print("TaskName in json")
+                                    #print('Moving: {} -> {}'.format(oldfile, newfile))
                                     copy2(oldfile, newfile)
                                 else :
                                     J['TaskName'] = D[sdan_id][acquisition_date].loc[oldfnam,
                                                                      'taskstr'].replace("_task-","")
-                                    print('Moving: {} -> {}'.format(oldfile, newfile))
+                                    #print('Moving: {} -> {}'.format(oldfile, newfile))
                                     writejson(J, newfile)
                             else:
-                                print('Moving: {} -> {}'.format(oldfile, newfile))
+                                #print('Moving: {} -> {}'.format(oldfile, newfile))
                                 copy2(oldfile, newfile)
                             if (iext == '.nii.gz'):
-                                print(oldfile)
-                                print("{} to {}".format(
-                                    D[sdan_id][acquisition_date].loc[oldfnam,"acquisition_time"],
-                                    D[sdan_id][acquisition_date].loc[oldfnam,"anondate"]))
+                                #print(oldfile)
+                                # print("{} to {}".format(
+                                #     D[sdan_id][acquisition_date].loc[oldfnam,"acquisition_time"],
+                                #     D[sdan_id][acquisition_date].loc[oldfnam,"anondate"]))
                                 
                                 write_to_file(os.path.join(dirout,
                                                        '{}'.format(sdan_id),
@@ -1322,43 +1349,63 @@ def main() :
                                               D[sdan_id][acquisition_date].loc[oldfnam,"ndays"].days)
                                 #add things here to save scans.tsv
     
-
+#
+        # Remove multi-echo fmap for assignment.
+        # for sdan_id in D :
+        #      for acquisition_date in D[sdan_id]:
+        #          MEfmaps = D[sdan_id][acquisition_date].loc[
+        #              (D[sdan_id][acquisition_date]["datatype"] == "fmap") & (
+        #                  ~D[sdan_id][acquisition_date]["echstr"].isnull())].sort_values("echstr")
+        #          if len(MEfmaps) > 0:
+        #              print("Keep only the first echo in case of ME fmap")
+        #              excluderows = MEfmaps.loc[MEfmaps["seriesnum"].duplicated()].index.tolist()
+        #              print(excluderows)
+        #              D[sdan_id][acquisition_date] = D[sdan_id][acquisition_date].drop(labels = excluderows)
+#%%
         for sdan_id in D:
             for acquisition_date in D[sdan_id]:
                 df = D[sdan_id][acquisition_date]
                 D[sdan_id][acquisition_date]["intendedfor"] = np.empty((len(D[sdan_id][acquisition_date]),0)).tolist()
                 df = D[sdan_id][acquisition_date]
-                if len(df.loc[(df["dirstr"] == "_dir-matching") | (df["dirstr"] == "_dir-opposite")]) > 0:
+                if len(df.loc[df["datatype"] == "fmap"]) > 0:
                     B0 = 0
-                    for g, group in df.loc[df["modstr"] == "_epi"].groupby(["dirstr","run"], sort=False):
+                    for g, group in df.loc[(df["modstr"] == "_epi")].groupby(["dirstr","run"], sort=False):
                         #print(group.index)
                         if 'opposite' in g[0]:
-                            B0 = B0 + 1
-                            D[sdan_id][acquisition_date].loc[group.index,"B0-identifier"] = "Field-{}".format(B0)
-                            seriesnum = group['seriesnum'].unique()[0]
-                            # Look for matching pair in +1 or -1 run. Sometimes there is just one opposite. This is fine
-                            matchings = df.loc[(df["modstr"] == "_epi") &\
-                                               ((df["seriesnum"] == seriesnum-1) | (df["seriesnum"] == seriesnum+1))&\
-                                               (df["dirstr"] == "_dir-matching")    ]
-                            #print(matchings.index)
-                            D[sdan_id][acquisition_date].loc[matchings.index,"B0-identifier"] = "Field-{}".format(B0)
+                            
+                            for seriesnum, seriesgroup in group.groupby('seriesnum'):
+                                #print(seriesnum)
+                                #print(seriesgroup)
+                                B0 = B0 + 1
+                                D[sdan_id][acquisition_date].loc[seriesgroup.index,"B0-identifier"] = "Field-{}".format(B0)
+                                # seriesnum = group['seriesnum'].unique()[0]
+                                # Look for matching pair in +1 or -1 run. Sometimes there is just one opposite. This is fine
+                                matchings = df.loc[(df["modstr"] == "_epi")
+                                                   & ((df["seriesnum"] == seriesnum-1) | (df["seriesnum"] == seriesnum+1))
+                                                   & (df["dirstr"] == "_dir-matching")]
+                                #print(matchings.index)
+                                D[sdan_id][acquisition_date].loc[matchings.index,"B0-identifier"] = "Field-{}".format(B0)
                     for i,ii in df.loc[df["has_fmap"]=="before"].iterrows() :
                         #print(i)
                         #print(ii)
                         seriesnum = ii["seriesnum"]
                         #find the first fmap before this run.
-                        fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] < seriesnum)].iloc[-1]["B0-identifier"]
+                        fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite")
+                                               & (df["seriesnum"] < seriesnum)
+                                               & (df["modstr"] == "_epi"),"B0-identifier"]
+                        #print(fmap_opposite)
+                        fmap_opposite = fmap_opposite.values[-1] 
                         D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = fmap_opposite
                         intendedfor = os.path.join('bids::',sdan_id,'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
                                                                      D[sdan_id][acquisition_date].loc[i,'datatype'], 
                                                                      '{}.nii.gz'.format(D[sdan_id][acquisition_date].loc[i,'newfnam']))
-                        #have to for loop for some reason
-                        for j in D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["B0-identifier"] == fmap_opposite) &\
-                                                                  ((D[sdan_id][acquisition_date]["dirstr"] == "_dir-matching") |\
-                                                                   (D[sdan_id][acquisition_date]["dirstr"] == "_dir-opposite"))].index :
+                        #print(intendedfor)
+                        for j in D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["B0-identifier"] == fmap_opposite)
+                                                                  & ((D[sdan_id][acquisition_date]["dirstr"] == "_dir-matching")
+                                                                  | (D[sdan_id][acquisition_date]["dirstr"] == "_dir-opposite"))].index :
                            #print(j)
-                           #print(D[sdan_id][acquisition_date].loc[j,"intendedfor"] + intendedfor)
-                           D[sdan_id][acquisition_date].loc[j,"intendedfor"].insert(-1,intendedfor)
+                           #print(D[sdan_id][acquisition_date].loc[j,"intendedfor"])
+                           D[sdan_id][acquisition_date].loc[j,"intendedfor"].append(intendedfor)
                            #print(D[sdan_id][acquisition_date].loc[j,"intendedfor"])
                     #Now for after
                     for i,ii in df.loc[df["has_fmap"]=="after"].iterrows() :
@@ -1367,7 +1414,9 @@ def main() :
                         seriesnum = ii["seriesnum"]
                         #find the first fmap before this run.
                         try :
-                            fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] > seriesnum)].iloc[0]["B0-identifier"]
+                            fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") 
+                                                   & (df["seriesnum"] > seriesnum)
+                                                   & (df["modstr"] == "_epi")].iloc[0]["B0-identifier"]
                         except IndexError :
                             print("#############################")
                             print("fmap failed for {}".format(ii["newfnam"]))
@@ -1387,15 +1436,16 @@ def main() :
                         intendedfor = os.path.join('bids::{}'.format(sdan_id),'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
                                                                      D[sdan_id][acquisition_date].loc[i,'datatype'], 
                                                                      '{}.nii.gz'.format(D[sdan_id][acquisition_date].loc[i,'newfnam']))
+                        print(intendedfor)
                         #have to for loop for some reason
                         for j in D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["B0-identifier"] == fmap_opposite) &\
                                                                   ((D[sdan_id][acquisition_date]["dirstr"] == "_dir-matching") |\
                                                                    (D[sdan_id][acquisition_date]["dirstr"] == "_dir-opposite"))].index :
                            #print(j)
                            #print(D[sdan_id][acquisition_date].loc[j,"intendedfor"] + intendedfor)
-                           D[sdan_id][acquisition_date].loc[j,"intendedfor"].insert(-1,intendedfor)
+                           D[sdan_id][acquisition_date].loc[j,"intendedfor"].append(intendedfor)
                            #print(D[sdan_id][acquisition_date].loc[j,"intendedfor"])
-                    
+#                   
                     #Finally write to jsons.
                     for i,ii in D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["datatype"] == "fmap"].iterrows() :
                         #print(i)
@@ -1430,6 +1480,7 @@ def main() :
                             #J['IntendedFor'] = ii["intendedfor"]
                             J["B0FieldSource"] = ii["B0-identifier"]
                         writejson(J, jsonfile)
+#%%
 # At last Match Physio
         for sdan_id in P:
             for acquisition_date in P[sdan_id]:
@@ -1459,7 +1510,7 @@ def main() :
                                                        ii.loc['ses']),
                                                    ii.loc['datatype'],
                                                    '{}_physio.tsv'.format(ii.loc['newfnam'].replace("_physio.tsv", ii["recordingstr"])))
-                            print("Moving {} -> {}".format(oldfile,newfile))
+                            #print("Moving {} -> {}".format(oldfile,newfile))
                             copy2(oldfile, newfile)
                             J = {}
                             if "Resp" in i :
