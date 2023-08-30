@@ -108,7 +108,7 @@ def isbidsfile(filename): # ===================================================
     return isit, fnam, fext
 
 def simplifystring(S):  # =====================================================
-    special_chars = [' ', '-', '_', '.', '+', '(', ')', '/','\n']
+    special_chars = [' ', '-', '_', '.', '+', '(', ')', '/','\n',"'"]
     for c in special_chars:
         S = S.replace(c, '')
     S = S.lower()
@@ -212,8 +212,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/TMSpilot/nifti"
-        dirout="/EDB/SDAN/temp/TMSpilot/BIDS"
+        dirin="/EDB/SDAN/temp/test08-23/nifti/"
+        dirout="/EDB/SDAN/temp/test08-23/BIDS/"
         renumber = True
     else :       
         args = parseArguments(sys.argv)
@@ -240,11 +240,12 @@ def main() :
         D = {}
         P = {}
         # For each file in the newly created BIDS dir:
-        for curdir, subdirs, files in os.walk(dirin):
+        for curdir, subdirs, files in os.walk(dirin,topdown=False):
             # Get physio if available
 
             if "physio" in curdir :
                 sdan_id = [i for i in curdir.split("/") if "sub-" in i][0]
+                print(sdan_id)
                 if sdan_id not in P:
                     P[sdan_id] = {}
                 for f in natsorted(files, alg=ns.IGNORECASE):
@@ -269,7 +270,12 @@ def main() :
                         P[sdan_id][acquisition_date].loc[f,'seriesnum'] = seriesnum
                         P[sdan_id][acquisition_date].loc[f,'oldpath'] =os.path.join(curdir,f)
                         matching = "_".join(f.split("_")[2:4])
-                        matchingfile = [i for i in files if i.startswith(matching)][0]
+                        matchingfile = [i for i in files if i.startswith(matching)]
+                        if len(matchingfile) == 0:
+                            matchingfile = "unmatched-physio"
+                            continue
+                        if len(matchingfile) > 0:
+                            matchingfile = matchingfile[0]
                         [P[sdan_id][acquisition_date].loc[f,'seriesdescription'],P[sdan_id][acquisition_date].loc[f,'seriesuid']] = findphysiotype(os.path.join(curdir,matchingfile))
                         
             else :
@@ -279,11 +285,12 @@ def main() :
                     #print(f)
         #             # Check if the current file could belong to BIDS and if it's a JSON
                     isfbids, oldfnam, fext = isbidsfile(f)
+                    sdan_id = [i for i in curdir.split("/") if "sub-" in i][0]
                     if isfbids and (fext == '.json'):
     
                         
         #                 # The info on the filename is not really useful - will get from json:
-                        sdan_id = oldfnam.split('_')[0]
+                        #sdan_id = oldfnam.split('_')[0]
                         
                         
                         J = readjson(os.path.join(curdir, f))
@@ -1188,6 +1195,12 @@ def main() :
                         # Messy fmap that might also have multiple echos This will need to be cleaned later manually.
                         elif (datatype == 'fmap') and multi_echo and (echo_time != ''):
                             echstr = '_echo-{}'.format(echo_time)
+                        if (datatype == 'fmap') and multi_echo :
+                            if   'singleband' in series_description:
+                                acqstr = '_acq-SBME'
+                            else:
+                                acqstr = '_acq-MBME'
+                            
                         # else:
                         #     echstr = None
                         
@@ -1227,13 +1240,13 @@ def main() :
                         D[sdan_id][acquisition_date].loc[tounknown,"modstr"]   = "_unknown-epi"
                         D[sdan_id][acquisition_date].loc[tokeep,"echstr"]      = None
                         D[sdan_id][acquisition_date].loc[tounknown,"datatype"] = "unknown"
-                        D[sdan_id][acquisition_date].loc[tokeep,"acqstr"]      = "_acq-MBME"
+                        #D[sdan_id][acquisition_date].loc[tokeep,"acqstr"]      = "_acq-MBME"
                         
                     D[sdan_id][acquisition_date]["anondate"] = D[sdan_id][acquisition_date]["acquisition_time"] - ndates
                     D[sdan_id][acquisition_date]["ndays"] = ndates
                     D[sdan_id][acquisition_date]["run"] = D[sdan_id][acquisition_date].groupby(["taskstr","recstr","dirstr","modstr","acqstr"]).cumcount()+1
                     D[sdan_id][acquisition_date]["ses"] = countses
-                    
+#%                   
                     #renumberecho
                     if len(D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()]) > 0 :
                          echos = D[sdan_id][acquisition_date].loc[~D[sdan_id][acquisition_date]["echstr"].isnull()].sort_values(
@@ -1313,6 +1326,7 @@ def main() :
                                                    '{}{}'.format(D[sdan_id][acquisition_date].loc[oldfnam, 'newfnam'], iext))
                             newdir, newname = os.path.split(newfile)
                             if not os.path.isdir(newdir):
+                                print(newdir)
                                 os.makedirs(newdir)
                             if (iext == '.json') and D[sdan_id][acquisition_date].loc[oldfnam,
                                                              'datatype'] == 'func':
@@ -1361,7 +1375,7 @@ def main() :
         #              excluderows = MEfmaps.loc[MEfmaps["seriesnum"].duplicated()].index.tolist()
         #              print(excluderows)
         #              D[sdan_id][acquisition_date] = D[sdan_id][acquisition_date].drop(labels = excluderows)
-#%%
+#
         for sdan_id in D:
             for acquisition_date in D[sdan_id]:
                 df = D[sdan_id][acquisition_date]
@@ -1432,7 +1446,7 @@ def main() :
                                 print("You will need to add it manually")
                                 print("#############################")
                                 continue
-                        D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = fmap_opposite
+                        D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = 'Field-{}'.format(fmap_opposite)
                         intendedfor = os.path.join('bids::{}'.format(sdan_id),'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
                                                                      D[sdan_id][acquisition_date].loc[i,'datatype'], 
                                                                      '{}.nii.gz'.format(D[sdan_id][acquisition_date].loc[i,'newfnam']))
@@ -1460,7 +1474,7 @@ def main() :
                             print("Intended for already in the Json?")
                         else :
                             J['IntendedFor'] = ii["intendedfor"]
-                            J["B0FieldIdentifier"] = ii["B0-identifier"]
+                            J["B0FieldIdentifier"] = f"{ii['B0-identifier']}-ses-{ii['ses']}"
                         
                         writejson(J, jsonfile)
                    # Write Jsons for functional too
@@ -1478,7 +1492,7 @@ def main() :
                             print("B0Field for already in the Json?")
                         else :
                             #J['IntendedFor'] = ii["intendedfor"]
-                            J["B0FieldSource"] = ii["B0-identifier"]
+                            J["B0FieldSource"] = f"{ii['B0-identifier']}-ses-{ii['ses']}"
                         writejson(J, jsonfile)
 #%%
 # At last Match Physio

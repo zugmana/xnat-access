@@ -12,16 +12,20 @@ import pydicom
 from shutil import copy2
 import re
 from natsort import natsorted
+import multiprocessing
+import xnat
+#import dill
 #import xnat
+
 def downloadphysio(xobject,downloadpath):
     #splitpath = os.path.split(downloadpath)
     exclude_strings = ["README","upload",".html"]
-    #print(xobject)
+    print(xobject)
     #file = splitpath[1].replace("tgz","_physio.tsv")
     physiopath = os.path.join(downloadpath,"physio")
     os.makedirs(physiopath, exist_ok = True)
     for r in xobject.resources.values() :
-        #print(r)
+        print(r)
         for file in r.files.values():
             try:
                 print(file.data)
@@ -62,19 +66,30 @@ def downloadphysio(xobject,downloadpath):
                     print("WARNING: error when downloading physio.")
                     print("\n")
                 
-                
+def unzip_and_sort(args):
+    downloadpath, extractpath = args
+    subprocess.run(["unzip -j {} -d {}".format(downloadpath, extractpath)], shell=True, stdout=subprocess.DEVNULL)
+    subprocess.run(["sortme {}".format(extractpath)], shell=True)               
 
-
-def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir, unzip, physio) :
+def download_forpar(args):
+    uri, path, user, password = args
+    #xscan = xscandill.loads(xscandill)
+    with xnat.connect("https://fmrif-xnat.nimh.nih.gov", user=user, password=password) as thissession: 
+        experiment_object = thissession.create_object(uri)
+        experiment_object.download(path, verbose = False)
+def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir, unzip, physio, u, p, max_processes = 4) :
     xproject = xsession.projects[project]
     xnat_subject = xproject.subjects[xmrn]
     count = 0
     exclude_strings = ["REQUISITION", "SCREEN-SAVE","SAVE",".txt","README"]
-    for xsession in xnat_subject.experiments.values() :
-        ses_date = xsession.date
+    args_list = []
+    downloadlist = []
+    #max_processes = 4
+    for session in xnat_subject.experiments.values() :
+        ses_date = session.date
         #print(ses_date)
         if date in ses_date.strftime("%m-%d-%Y") : # if date undefined - check all sessions          
-          for xscan in xsession.scans.values() :
+          for xscan in session.scans.values() :
               xsname =  xscan.series_description
               if any(series in xsname for series in exclude_strings):
                   continue
@@ -85,18 +100,33 @@ def download_dcm(xsession, project, xmrn, sdanid, date, seriesName, downloaddir,
                       #xsname = simplifystring(xsname)
                 os.makedirs(os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y")),  exist_ok = True) 
                 downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
-                                            "{}_{}.tgz".format(xsname,xsnumber))
-                xscan.download(downloadpath)
+                                            "{}_{}.zip".format(xsname,xsnumber))
+                if max_processes == 1:
+                    xscan.download(downloadpath)
                 count = count + 1
-                
+                uri = xscan.uri
+                downloadlist.append((uri,downloadpath, u, p))
                 if unzip : 
                     extractpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"),
                                                 "{}_{}".format(xsname,xsnumber))
+                    args_list.append((downloadpath, extractpath))
+                if max_processes == 1:
                     subprocess.run(["unzip -j {} -d {}".format(downloadpath,extractpath)], shell=True, stdout=subprocess.DEVNULL)
                     subprocess.run(["sortme {}".format(extractpath)], shell=True)
           if (count > 0) and physio :
+              print("downloading physio")
               downloadpath = os.path.join(downloaddir,"sub-{}".format(sdanid),ses_date.strftime("%m-%d-%Y"))
-              downloadphysio(xsession,downloadpath)
+              downloadphysio(session,downloadpath)
+    #print (downloadlist)
+    if max_processes > 1:
+        print("downloading images - please wait")
+        with multiprocessing.Pool(processes=max_processes) as pool:
+            pool.map(download_forpar, downloadlist)  
+        print("unzipping and checking for ME - please wait")
+        with multiprocessing.Pool(processes=max_processes) as pool:
+            pool.map(unzip_and_sort, args_list)  
+        #clear xsession
+        
     # except:
     #      print("Did not find this subject in this collection.")
     #      print("subject:{} Check if this subject is in XNAT project {}".format(sdanid, project))
@@ -213,18 +243,28 @@ def anonymize(path_dcm, downloaddir, sdanid) :
              count = count+1
              #subprocess.run(["rm {}".format(os.path.join(root, file))], shell=True)
 
+def dcmnii(cmd):
+    subprocess.run(cmd)
        
 def convert2nii(path_dcm, downloaddir, sdanid) :
+    cmds = []
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
         if not dirs:
             print(root, "converting")
-            os.makedirs(root.replace(path_dcm,downloaddir), exist_ok=True)
-            subprocess.run(["dcm2niix -f 'sub-{}_%f' -z y -o {} {} ".format(sdanid,root.replace(path_dcm,downloaddir),root)], shell = True)
+            if os.path.isdir(root.replace(path_dcm,downloaddir)):
+                continue
+            os.makedirs(root.replace(path_dcm,downloaddir))
+            
+            dcmprocess = ["dcm2niix","-f",f"sub-{sdanid}_%f","-z","y","-o",f"{root.replace(path_dcm,downloaddir)}",f"{root}"]
+            cmds.append(dcmprocess)
+            # for proc in dcmprocess:
+            #     	proc.wait()
         if "physio" in root :
             for f in files :
                 print(os.path.join(root,f))
                 copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
-
+    with multiprocessing.Pool(processes=2) as pool:
+        pool.map(dcmnii, cmds)
 
 def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip, physio) :
     #print(xmrn)

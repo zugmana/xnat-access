@@ -8,7 +8,8 @@ import os
 import getpass
 import tempfile
 #
-from . __version__ import __version__
+if not hasattr(sys, "ps1"):
+    from . __version__ import __version__
 from downloadtools.utils import dbreader
 #from downloadtools import dbsearch
 from downloadtools.utils import download_dcm
@@ -27,22 +28,23 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24573","24475", "24522","24509","24518"]
+        sdanid = ["24718","24718","24718"]
         #sdanid = False
-        date = [""]#["2023","02-07-2023"]
+        date = ["07-15-2023","08-05-2023","08-20-2023" ]#["2023","02-07-2023"]
         download = True
         SeriesName = [""]
         unzip = True
         keepdicom = False
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/test02-14-2"
+        downloaddir = "/EDB/SDAN/temp/test08-30"
         user = None
         password = None
         MRNid = None 
         dosnapshotsubject = False
         search_robin = True
         dobids = True
-        
+        physio = True
+        nworkers = 2
         #os.environ["TMP"] = "/EDB/SDAN/temp/"
     else :
         parser = argparse.ArgumentParser(description="Download data from XNAT v {}. Created by Andre Zugman".format(__version__))
@@ -79,11 +81,16 @@ def main():
                             help="""Do not use robin id. In this case provide the MRN manually with no "-".
                             You can also use this with other ID (i.e.: NDAR GUID). In this case the data will use the id provided.
                             Only use this if you are sure it is safe to do so.""")
+        parser.add_argument('--nworkers', type=int,dest='nworkers',
+                            help="""Number of workers. If set to 1 will follow old behavior,
+                            if set to > 1 it will allow for multiple downloads and unzipping in parallel.
+                            It may not necesserally speed up things for you.""")
+        parser.set_defaults(nworkers = 1)
         parser.set_defaults(MRNid = None)
         parser.set_defaults(SeriesName=[""])
         parser.set_defaults(project="01-M-0192")
         args = parser.parse_args()
-        #print(parser.print_help())
+        nworkers = args.nworkers
         project = args.project
         dosnapshot = args.dosnapshot
         sdanid = args.id
@@ -156,7 +163,13 @@ def main():
         print (".netrc file not found. Prompting for username and password")
         user = getpass.getuser()
         print ("current user is {}".format(user))
-        password = getpass.getpass(prompt="Please enter Password : ")
+        password = getpass.getpass(prpt="Please enter Password : ")
+    # Check if SSL_CERT_DIR is set
+        # if not os.getenv("SSL_CERT_DIR"):
+        #     print("SSL_CERT_DIR not setup")
+        #     os.environ["SSL_CERT_DIR"] = "/etc/pki/NIH/"
+        #     os.environ["REQUESTS_CA_BUNDLE"] = "/etc/pki/NIH/"
+            
     with xnat.connect("https://fmrif-xnat.nimh.nih.gov", user=user, password=password) as xsession :
         if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
             print("WARNING : tempfile not specified by user. Please consider setting your TMP path before running this script" )
@@ -218,7 +231,7 @@ def main():
                         else :
                             MRN = MRNid[idd]
                          
-                        download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip, physio )
+                        download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip, physio, user, password , max_processes = nworkers)
                         if keepdicom :
                             downloaddirlocal = os.path.join(downloaddir,"dicom")
                             anonymize(tempdir,downloaddirlocal, i)
@@ -230,10 +243,10 @@ def main():
                             
                             download_dcmname(xsession, project, FirstName, LastName, i, date[idd], SeriesName, tempdir, unzip)
                             if keepdicom :
-                                downloaddirlocal = os.path.join(downloaddir,"dicom")
+                                downloaddirlocal = os.path.join(downloaddir,"dicom",date[idd])
                                 anonymize(tempdir,downloaddirlocal, i)
                             else :
-                                downloaddirlocal = os.path.join(downloaddir,"nifti")
+                                downloaddirlocal = os.path.join(downloaddir,"nifti",date[idd])
                                 convert2nii(tempdir,downloaddirlocal, i)
                 if not sdanid :
                     print ("no id provided - looking for date")

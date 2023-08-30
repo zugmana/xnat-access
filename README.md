@@ -79,3 +79,9 @@ You can check what they are in the SeriesDescription files of the accompaining j
 If you run bidsvalidator these files will result in an error, but I have decided
 to keep this here. You can manually remove them after you inspect and make sure
 they are not needed.
+
+NEW CHANGES v 0.5 :
+Fixed a problem in the xnat2bids function for multi-session subjects.
+The fmap identifier is now unique to the session.
+There is now a possiblilty of running downloads and unzipping in parallel. 
+
