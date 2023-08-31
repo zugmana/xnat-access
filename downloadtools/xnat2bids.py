@@ -19,6 +19,7 @@ from natsort import natsorted, ns
 import nibabel as nib
 import warnings
 import datetime
+import re
 
 
 def printHelp(argv, description): # ===========================================
@@ -212,8 +213,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/test08-23/nifti/"
-        dirout="/EDB/SDAN/temp/test08-23/BIDS/"
+        dirin="/EDB/SDAN/temp/Doors/rawdata/nifti"
+        dirout="/EDB/SDAN/temp/test-08-30/BIDS"
         renumber = True
     else :       
         args = parseArguments(sys.argv)
@@ -292,7 +293,12 @@ def main() :
         #                 # The info on the filename is not really useful - will get from json:
                         #sdan_id = oldfnam.split('_')[0]
                         
-                        
+                        pattern = r'[a-z]+\.json$'
+                        if re.match(pattern, f):
+                            print("Filename matches pattern of repeated conversion by dcm2niix")
+                            print(f"please check {f}")
+                            print(f"skipping {f}")
+                            continue
                         J = readjson(os.path.join(curdir, f))
                         if not J:
                             continue
