@@ -213,8 +213,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/Doors/rawdata/nifti"
-        dirout="/EDB/SDAN/temp/test-08-30/BIDS"
+        dirin="/EDB/SDAN/temp/test08-30/nifti"
+        dirout="/EDB/SDAN/temp/test08-30/BIDS"
         renumber = True
     else :       
         args = parseArguments(sys.argv)

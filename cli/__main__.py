@@ -163,7 +163,7 @@ def main():
         print (".netrc file not found. Prompting for username and password")
         user = getpass.getuser()
         print ("current user is {}".format(user))
-        password = getpass.getpass(prpt="Please enter Password : ")
+        password = getpass.getpass(prompt="Please enter Password : ")
     # Check if SSL_CERT_DIR is set
         # if not os.getenv("SSL_CERT_DIR"):
         #     print("SSL_CERT_DIR not setup")
