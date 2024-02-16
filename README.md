@@ -83,5 +83,8 @@ they are not needed.
 NEW CHANGES v 0.5 :
 Fixed a problem in the xnat2bids function for multi-session subjects.
 The fmap identifier is now unique to the session.
-There is now a possiblilty of running downloads and unzipping in parallel. 
+There is now a possiblilty of running downloads and unzipping in parallel.
+v 0.5.3: 
+You can now pass a csv with a list of subjects, one subject per line.
+
 

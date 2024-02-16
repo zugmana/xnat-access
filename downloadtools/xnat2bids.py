@@ -964,7 +964,22 @@ def main() :
                             taskstr    = '_task-flanker3'
                             has_fmap   = 'after'
                             multi_echo = False
-            
+                            
+                        elif 'flankerv4' in series_description: # Add new Flanker--------------------
+                            # This is the "Flanker 3" task
+                            datatype   = 'func'
+                            modstr     = '_bold'
+                            taskstr    = '_task-flanker4'
+                            has_fmap   = 'before'
+                            multi_echo = False
+                            
+                        elif 'axcptx4' in series_description: # Add AX-CPT--------------------
+                            # This is the "Flanker 3" task
+                            datatype   = 'func'
+                            modstr     = '_bold'
+                            taskstr    = '_task-axcpt2'
+                            has_fmap   = 'before'
+                            multi_echo = False    
                         elif 'epitaskap32runs183reps' in series_description: # ------------
                             # This is the "Affective Posner 3" task
                             datatype   = 'func'

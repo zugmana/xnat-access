@@ -28,15 +28,15 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24718","24718","24718"]
+        sdanid = ["24624"]
         #sdanid = False
-        date = ["07-15-2023","08-05-2023","08-20-2023" ]#["2023","02-07-2023"]
+        date = ["11-04-2023"]#["2023","02-07-2023"]
         download = True
         SeriesName = [""]
         unzip = True
         keepdicom = False
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/test08-30"
+        downloaddir = "/EDB/SDAN/temp/test01-12"
         user = None
         password = None
         MRNid = None 
@@ -129,11 +129,20 @@ def main():
     if search_name:
         search_robin = False
     if sdanid is not None :
-        sdanid = " ".join(sdanid).split(" ")
-        while "" in sdanid:
-            sdanid.remove("")
-        while " " in sdanid:
-            sdanid.remove(" ")
+        if os.path.isfile(sdanid[0]):
+            sdanid = pd.read_csv(sdanid[0],header = None, index_col= None)
+            
+            sdanid = sdanid.iloc[:,0].to_list()
+            print(sdanid)
+        else :
+            sdanid = " ".join(sdanid).split(" ")
+            while "" in sdanid:
+                sdanid.remove("")
+            while " " in sdanid:
+                sdanid.remove(" ")
+        sdanid = [x[1:] if x.startswith('s') else x for x in sdanid if x.isdigit() or x.startswith('s')]
+
+
     else :
         sdanid = False
     if MRNid is not None:
@@ -202,15 +211,35 @@ def main():
             download = False
         
         if dosnapshotsubject :
-            for idd,i in enumerate(sdanid) :
-                try :
-                    dbsnapshot = checkdatabasesubject(xsession, project, i, MRNid[idd])
-                    if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
-                        dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
-                    else:
-                        dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
-                except KeyError:
-                    print("subject:{} not in this XNAT project".format(i))
+            if MRNid is not None:
+                for idd,i in enumerate(sdanid) :
+                    try :
+                        dbsnapshot = checkdatabasesubject(xsession, project, i, MRNid[idd])
+                        if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
+                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
+                        else:
+                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
+                    except KeyError:
+                        print("subject:{} not in this XNAT project".format(i))
+            else:
+               for idd, i in enumerate(sdanid) :
+                   #try :
+                       print(i)
+                       dbsearched = dbreader(i)
+                       print(dbsearched)
+                       MRN = dbsearched.loc[0,1]
+                       MRN = MRN.replace("-","")
+                       LastName = dbsearched.loc[0,3]
+                       LastName = LastName.replace(",","")
+                       FirstName = dbsearched.loc[0,4]
+                       print("MRN")
+                       dbsnapshot = checkdatabasesubject(xsession,project,i,MRN)
+                       if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
+                           dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header =False, mode='a')
+                       else :
+                           dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index=False)
+                   #except KeyError:
+                       print("subject:{} not in this XNAT project".format(i))
         if download :
             #set up temp folder to work on
             #tempfile.tempdir=tempfile.gettempdir()
