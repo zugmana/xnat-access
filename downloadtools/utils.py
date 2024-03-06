@@ -166,7 +166,8 @@ def checkdatabasesubject(xsession, project, sdanid, xmrn) :
     dbsnapshot = pd.DataFrame(columns=["subjects","seriesName","uri","date-series","date-session","AccessionNumber"])
     #for xsubject in xproject.subjects.values() :
     #    xmrn = xsubject.label
-    print(xnat_subject)
+    #print(xnat_subject)
+    print(f"checking for {sdanid} in {project}")
     for xsession in xnat_subject.experiments.values() :            
         ses_date = xsession.date
         for xscan in xsession.scans.values() :

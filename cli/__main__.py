@@ -21,6 +21,7 @@ from downloadtools.utils import download_dcmname
 #from downloadtools.utils import move_to_dest
 from downloadtools.utils import makebids
 from downloadtools.utils import checkdatabasesubject
+from downloadtools.pgsqlutils import checkrobin
 #%%
 def main():
     
@@ -190,18 +191,20 @@ def main():
                 os.makedirs("/home/{}/tmp".format(getpass.getuser()))
             
         if dosnapshot :
-            dbsearched = dbreader(0)
-            dbsearched["subjects"] = dbsearched.loc[:,1].str.replace("-","")
-            dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[a-z]+","", regex=True)
-            dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[A-Z]+","", regex=True)
-            dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(",","")
-            dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce", downcast="integer")
+            print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
+            #dbsearched = dbreader(0)
+            #dbsearched["subjects"] = dbsearched.loc[:,1].str.replace("-","")
+            #dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[a-z]+","", regex=True)
+            #dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[A-Z]+","", regex=True)
+            #dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(",","")
+            #dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce", downcast="integer")
+            dbsearched = checkrobin(20000000,allsubj=True)
             dbsnapshot = checkdatabase(xsession, project)
             dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot-xnatpartial.csv"),index = False)
-            dbsnapshot["subjects"] = pd.to_numeric(dbsnapshot["subjects"],errors = "coerce", downcast="integer")
+            dbsnapshot["subjects"] = pd.to_numeric(dbsnapshot["mrn"],errors = "coerce", downcast="integer")
             dbsnapshot = dbsnapshot.merge(dbsearched,on= "subjects",how="inner")
-            dbsnapshot = dbsnapshot.rename(columns={0: "sdanid", 1: "MRN", 2: "DOB",3: "Last Name", 4: "First Name" })
-            dbsnapshot.drop([5,6,7], axis = 1, inplace = True)
+            #dbsnapshot = dbsnapshot.rename(columns={0: "sdanid", 1: "MRN", 2: "DOB",3: "Last Name", 4: "First Name" })
+            #dbsnapshot.drop([5,6,7], axis = 1, inplace = True)
             #dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(int)
             dbsnapshot = dbsnapshot.reindex(columns= ['sdanid', 'MRN',"AccessionNumber",
                    'DOB', 'Last Name', 'First Name','seriesName', 'uri', 'date-series', 'date-session'])
@@ -211,6 +214,7 @@ def main():
             download = False
         
         if dosnapshotsubject :
+            print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
             if MRNid is not None:
                 for idd,i in enumerate(sdanid) :
                     try :
@@ -218,25 +222,31 @@ def main():
                         if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
                             dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
                         else:
+                            os.makedirs(downloaddir,exist_ok = True)
                             dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
                     except KeyError:
                         print("subject:{} not in this XNAT project".format(i))
             else:
                for idd, i in enumerate(sdanid) :
                    #try :
-                       print(i)
-                       dbsearched = dbreader(i)
-                       print(dbsearched)
-                       MRN = dbsearched.loc[0,1]
-                       MRN = MRN.replace("-","")
-                       LastName = dbsearched.loc[0,3]
-                       LastName = LastName.replace(",","")
-                       FirstName = dbsearched.loc[0,4]
-                       print("MRN")
+                       #print(i)
+                       #dbsearched = dbreader(i)
+                       #print(dbsearched)
+                       dbsearched = checkrobin(i)
+                       if len(dbsearched) == 1:
+                           MRN = dbsearched.loc[0,"mrn"]
+                       else:
+                           print(f"something went wrong when checking database for this subject {i}. please check robin")
+                       #MRN = MRN.replace("-","")
+                       #LastName = dbsearched.loc[0,3]
+                       #LastName = LastName.replace(",","")
+                       #FirstName = dbsearched.loc[0,4]
+                       #print(f"MRN:{MRN}")
                        dbsnapshot = checkdatabasesubject(xsession,project,i,MRN)
                        if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header =False, mode='a')
                        else :
+                           os.makedirs(downloaddir,exist_ok = True)
                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index=False)
                    #except KeyError:
                        #print("subject:{} not in this XNAT project".format(i))
@@ -251,12 +261,18 @@ def main():
                         
                         #print (i)
                         if search_robin :
-                            dbsearched = dbreader(i)
-                            MRN = dbsearched.loc[0,1]
-                            MRN = MRN.replace("-","")
-                            LastName = dbsearched.loc[0,3]
-                            LastName = LastName.replace(",","")
-                            FirstName = dbsearched.loc[0,4]
+                            #dbsearched = dbreader(i)
+                            #MRN = dbsearched.loc[0,1]
+                            #MRN = MRN.replace("-","")
+                            #LastName = dbsearched.loc[0,3]
+                            #LastName = LastName.replace(",","")
+                            #FirstName = dbsearched.loc[0,4]
+                            dbsearched = checkrobin(i)
+                            if len(dbsearched) == 1:
+                                MRN = dbsearched.loc[0,"mrn"]
+                            else:
+                                print(f"something went wrong when checking database for this subject {i}. please check robin")
+                            
                         else :
                             MRN = MRNid[idd]
                          
@@ -269,7 +285,8 @@ def main():
                             convert2nii(tempdir,downloaddirlocal, i)
                         if search_name :
                             print ("Downloading by Name")
-                            
+                            FirstName = dbsearched.loc[0,"first_name"]
+                            LastName = dbsearched.loc[0,"lasname_name"]
                             download_dcmname(xsession, project, FirstName, LastName, i, date[idd], SeriesName, tempdir, unzip)
                             if keepdicom :
                                 downloaddirlocal = os.path.join(downloaddir,"dicom",date[idd])
