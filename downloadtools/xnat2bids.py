@@ -38,7 +38,7 @@ def printHelp(argv, description): # ===========================================
     print("Anderson M. Winkler, modified by Andre Zugman")
     print("National Institutes of Health")
     print("First version: Sep/2020")
-    print("This version:  Feb/2023")
+    print("This version:  Mar/2024")
     print("Modified to use with xnat-access")
     print("")
     exit(1)
