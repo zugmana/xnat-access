@@ -14,6 +14,7 @@ import re
 from natsort import natsorted
 import multiprocessing
 import xnat
+from downloadtools.pgsqlutils import checkrobin2
 #import dill
 #import xnat
 
@@ -286,15 +287,17 @@ def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip, p
             MRN = str(xsession.dcm_patient_id)
             # get the sdan id
             MRN = '-'.join(MRN[i:i + 2] for i in range(0, len(MRN), 2))
-            variable = subprocess.run(["dbsearch \"\" | grep {}".format(MRN)], shell = True, capture_output=True, universal_newlines = True)
-            listsid = str(variable.stdout)
-            listsid = listsid.replace("  ","")
-            listsid = listsid.split("\n")
-            listsid = listsid[0:]
-            templist = pd.DataFrame(listsid[0:])
-            templist.loc[:,0] = templist.loc[:,0].str.strip()
-            dbsearched = pd.DataFrame(templist.loc[:,0].str.split(" ").tolist())
-            sdanid = dbsearched.loc[0,0]
+            
+            #variable = subprocess.run(["dbsearch \"\" | grep {}".format(MRN)], shell = True, capture_output=True, universal_newlines = True)
+            #listsid = str(variable.stdout)
+            #listsid = listsid.replace("  ","")
+            #listsid = listsid.split("\n")
+            #listsid = listsid[0:]
+            #templist = pd.DataFrame(listsid[0:])
+            #templist.loc[:,0] = templist.loc[:,0].str.strip()
+            #dbsearched = pd.DataFrame(templist.loc[:,0].str.split(" ").tolist())
+            dbsearched = checkrobin2(MRN)
+            sdanid = dbsearched.loc[0,"sdan_id"]
             listsdanid = listsdanid + [sdanid]
             #print (listsdanid)
             #print(xsession.date)

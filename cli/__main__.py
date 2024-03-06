@@ -229,6 +229,7 @@ def main():
             else:
                for idd, i in enumerate(sdanid) :
                    #try :
+                       
                        #print(i)
                        #dbsearched = dbreader(i)
                        #print(dbsearched)
@@ -237,7 +238,8 @@ def main():
                            MRN = dbsearched.loc[0,"mrn"]
                        else:
                            print(f"something went wrong when checking database for this subject {i}. please check robin")
-                       #MRN = MRN.replace("-","")
+                           continue
+                        #MRN = MRN.replace("-","")
                        #LastName = dbsearched.loc[0,3]
                        #LastName = LastName.replace(",","")
                        #FirstName = dbsearched.loc[0,4]
@@ -272,7 +274,7 @@ def main():
                                 MRN = dbsearched.loc[0,"mrn"]
                             else:
                                 print(f"something went wrong when checking database for this subject {i}. please check robin")
-                            
+                                continue
                         else :
                             MRN = MRNid[idd]
                          

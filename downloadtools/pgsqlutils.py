@@ -53,3 +53,21 @@ def checkrobin(sdanid,allsubj=False):
     else :
         my_table    = pd.read_sql('select * from core', engine)
     return my_table
+
+def checkrobin2(mrn,allsubj=False):
+
+    c = read_config()
+    url_object = URL.create(
+    drivername="postgresql",
+    username= c["uname"],
+#    #password="password",
+    host=c["URL"],
+    database=c["dbname"]
+    )
+
+    engine = create_engine(url=url_object)
+    if not allsubj:
+        my_table    = pd.read_sql(f'select * from core where mrn = {mrn}', engine)
+    else :
+        my_table    = pd.read_sql('select * from core', engine)
+    return my_table
