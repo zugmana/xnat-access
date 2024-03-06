@@ -239,7 +239,7 @@ def main():
                        else :
                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index=False)
                    #except KeyError:
-                       print("subject:{} not in this XNAT project".format(i))
+                       #print("subject:{} not in this XNAT project".format(i))
         if download :
             #set up temp folder to work on
             #tempfile.tempdir=tempfile.gettempdir()
