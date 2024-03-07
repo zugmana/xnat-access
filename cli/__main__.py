@@ -238,6 +238,9 @@ def main():
                        dbsearched = checkrobin(i)
                        if len(dbsearched) == 1:
                            MRN = dbsearched.loc[0,"mrn"]
+                           if not MRN:
+                               warnings.warn(f"Oh No! Couldn't find MRN for {i}. Check the database")
+                               continue
                        else:
                            print(f"something went wrong when checking database for this subject {i}. please check robin")
                            continue
@@ -296,6 +299,9 @@ def main():
                             dbsearched = checkrobin(i)
                             if len(dbsearched) == 1:
                                 MRN = dbsearched.loc[0,"mrn"]
+                                if not MRN:
+                                    warnings.warn(f"Oh No! Couldn't find MRN for {i}. Check the database")
+                                    continue
                             else:
                                 print(f"something went wrong when checking database for this subject {i}. please check robin")
                                 continue
