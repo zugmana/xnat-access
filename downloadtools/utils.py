@@ -179,10 +179,14 @@ def checkdatabasesubject(xsession, project, sdanid, xmrn) :
             except :
                 AccessionNumber = 99
             dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(sdanid), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
+            PatientName = xscan.dicom_dump(fields = "PatientName")[0]["value"]
+            PatientName = simplifystring(PatientName)
+            PatientName = PatientName.split('-')
+            #print(PatientName)
             # count = count + 1
         # if count == 5:
         #      break
-    return dbsnapshot
+    return dbsnapshot, PatientName
 
 def dbreader (sdanid):
     if sdanid == 0:

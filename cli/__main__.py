@@ -7,6 +7,7 @@ import sys
 import os
 import getpass
 import tempfile
+import warnings
 #
 if not hasattr(sys, "ps1"):
     from . __version__ import __version__
@@ -21,6 +22,7 @@ from downloadtools.utils import download_dcmname
 #from downloadtools.utils import move_to_dest
 from downloadtools.utils import makebids
 from downloadtools.utils import checkdatabasesubject
+from downloadtools.utils import simplifystring
 from downloadtools.pgsqlutils import checkrobin
 #%%
 def main():
@@ -218,7 +220,7 @@ def main():
             if MRNid is not None:
                 for idd,i in enumerate(sdanid) :
                     try :
-                        dbsnapshot = checkdatabasesubject(xsession, project, i, MRNid[idd])
+                        dbsnapshot,PatientName = checkdatabasesubject(xsession, project, i, MRNid[idd])
                         if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
                             dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
                         else:
@@ -244,7 +246,29 @@ def main():
                        #LastName = LastName.replace(",","")
                        #FirstName = dbsearched.loc[0,4]
                        #print(f"MRN:{MRN}")
-                       dbsnapshot = checkdatabasesubject(xsession,project,i,MRN)
+                       dbsnapshot,PatientName = checkdatabasesubject(xsession,project,i,MRN)
+                       FirstName = simplifystring(dbsearched.loc[0,"first_name"])
+                       FirstName = FirstName.split('-')
+                       LastName = simplifystring(dbsearched.loc[0,"last_name"])
+                       LastName = LastName.split('-')
+                       NamesRobin = FirstName + LastName
+                      
+                       mismatched_names = [name for name in NamesRobin if name not in PatientName]
+
+                       # Check if there are any mismatches
+                       if mismatched_names:
+                        warnings.warn("Warning: The following names from list ROBIN are not in the DICOM PatientName field:")
+                        for name in mismatched_names:
+                            print(name)
+                       mismatched_names = [name for name in PatientName if name not in NamesRobin]
+
+                       # Check if there are any mismatches
+                       if mismatched_names:
+                        warnings.warn("Warning: The following names from list DICOM PatientName are not in the ROBIN field:")
+                        for name in mismatched_names:
+                            print(name)
+ 
+                     
                        if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header =False, mode='a')
                        else :
