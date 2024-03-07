@@ -7,7 +7,7 @@ Created on Wed Mar  6 10:22:45 2024
 """
 
 #import psycopg
-from sqlalchemy import create_engine, URL
+from sqlalchemy import create_engine, URL, text
 import pandas as pd
 import pandas.io.sql as psql
 from os import environ
@@ -49,9 +49,13 @@ def checkrobin(sdanid,allsubj=False):
 
     engine = create_engine(url=url_object)
     if not allsubj:
-        my_table    = pd.read_sql(f'select * from core where sdan_id = {sdanid}', engine)
+        query = text(f'select * from core where sdan_id = {sdanid}')
+        with engine.connect() as conn:
+            my_table    = pd.read_sql(query, conn)
     else :
-        my_table    = pd.read_sql('select * from core', engine)
+        query = text('select * from core')
+        with engine.connect() as conn:
+            my_table    = pd.read_sql(query, conn)
     return my_table
 
 def checkrobin2(mrn,allsubj=False):
@@ -67,7 +71,11 @@ def checkrobin2(mrn,allsubj=False):
 
     engine = create_engine(url=url_object)
     if not allsubj:
-        my_table    = pd.read_sql(f'select * from core where mrn = {mrn}', engine)
+        query = text(f'select * from core where mrn = {mrn}')
+        with engine.connect() as conn:
+            my_table    = pd.read_sql(query, conn)
     else :
-        my_table    = pd.read_sql('select * from core', engine)
+        query = text('select * from core')
+        with engine.connect() as conn:
+            my_table    = pd.read_sql(query, conn)
     return my_table
