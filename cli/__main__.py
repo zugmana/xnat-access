@@ -29,9 +29,9 @@ def main():
     
        
     if hasattr(sys, "ps1"):
-        project = "01-M-0192"
-        dosnapshot = ""
-        sdanid = ["24624","24733"]#["24624","24733"]
+        project = "18-M-0037"
+        dosnapshot = "scans"
+        sdanid = ["24799"]#["24624","24733"]
         #sdanid = False
         date = ["",""]#
         download = True
@@ -43,7 +43,7 @@ def main():
         user = None
         password = None
         MRNid = None 
-        dosnapshotsubject = False
+        dosnapshotsubject = True
         search_robin = True
         dobids = True
         physio = True
@@ -262,7 +262,7 @@ def main():
             #print(f"getting a list of scans for subject {}")
             #allsessions = listsession(connect)
             dbsnapshot = pd.DataFrame()
-            headerinfo = pd.DataFrame()
+            #headerinfo = pd.DataFrame()
             if sdanid:
                 for idd,i in enumerate(sdanid):
                     if search_robin :
@@ -284,7 +284,7 @@ def main():
                     xnatID = xnatID.loc[0,"ID"]
                     sessions = listsession(connect,xnatID,date=date[idd])
                     scans,hdr = listscans(connect,sessions,get_header=True)
-                    namesdicom = headerinfo["Patient&rsquo;s Name"].apply(simplifystring).unique()
+                    namesdicom = hdr["Patient&rsquo;s Name"].apply(simplifystring).unique()
                     namesdicom = list(namesdicom)
                     if len(namesdicom) > 1:
                         print(f"ooops. more than one name in the dicoms of {i}: {namesdicom}")
@@ -293,7 +293,7 @@ def main():
                         namecheck(dbsearched,namesdicom[0])
                     scans["sdanid"] = i
                     dbsnapshot = pd.concat([dbsnapshot,scans])
-                    headerinfo = pd.concat([headerinfo,hdr])
+                    #headerinfo = pd.concat([headerinfo,hdr])
             else :
                print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv") 
                print("This will download data for everyone. It will take a long time... Will not perform dicom dump")
