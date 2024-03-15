@@ -262,7 +262,7 @@ def main():
             #print(f"getting a list of scans for subject {}")
             #allsessions = listsession(connect)
             dbsnapshot = pd.DataFrame()
-            #headerinfo = pd.DataFrame()
+            headerinfo = pd.DataFrame()
             if sdanid:
                 for idd,i in enumerate(sdanid):
                     if search_robin :
@@ -313,10 +313,10 @@ def main():
                         continue
                    xnatID = xnatID.loc[0,"ID"]
                    sessions = listsession(connect,xnatID)
-                   scans,_ = listscans(connect,sessions,get_header=False)
+                   scans,hdr = listscans(connect,sessions,get_header=False)
                    dbsnapshot = pd.concat([dbsnapshot,scans])
                    headerinfo = pd.concat([headerinfo,hdr])
-                   namesdicom = headerinfo["Patient&rsquo;s Name"].apply(simplifystring).unique()
+                   namesdicom = hdr["Patient&rsquo;s Name"].apply(simplifystring).unique()
                    namesdicom = list(namesdicom)
                    if len(namesdicom) > 1:
                        print(f"ooops. more than one name in the dicoms of {i}: {namesdicom}")
