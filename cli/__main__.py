@@ -393,13 +393,11 @@ def main():
                                                         f"sub-{i}",
                                                         j["date"],
                                                         f"{j['series_description']}_{j['ID']}")
-                            dicompaths = os.path.join(downloaddir,"DICOM",
-                                                        f"sub-{i}",
-                                                        j["date"],
-                                                        f"{j['series_description']}_{j['ID']}")
+                            dicomorigpaths = os.path.join(tempdir,"DICOM")
+                            dicompaths = os.path.join(downloaddir,"DICOM")
                             downloadlist.append((connect.xnaturl,f'{j["URI"]}/resources/DICOM/files',downloadpath,cookies))
                             unzipargs.append((downloadpath,unzippath))
-                            anonymizeargs.append((unzippath,dicompaths,i))
+                            anonymizeargs.append((dicomorigpaths,dicompaths,i))
                         print("downloading images - please wait")
                     with multiprocessing.Pool(processes=nworkers) as pool:
                         pool.starmap(downloadfile, downloadlist)
@@ -417,9 +415,9 @@ def main():
                         
                     if dobids :
                         makebids(downloaddirlocal,tempdir, True)
-                    else :
-                        print("download with no sdanid not yet implemented")
-                        sys.exit()
+                else :
+                    print("download with no sdanid not yet implemented")
+                    sys.exit()
             #subjsees = listsession(connect,)
             # dbsearched = checkrobin(20000000,allsubj=True)
             # allsessions = allsessions.rename(columns={'subject_label': 'mrn'})

@@ -227,7 +227,8 @@ def dbreader (sdanid):
 def anonymize(path_dcm, downloaddir, sdanid) :
     print('working on dicoms. Please do not interrupt.')
     paths = []
-    #print(os.path.join(path_dcm,"sub-{}".format(sdanid)))
+    print(os.path.join(path_dcm,"sub-{}".format(sdanid)))
+    
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
        #print(dirs)
        count = 1
@@ -241,7 +242,7 @@ def anonymize(path_dcm, downloaddir, sdanid) :
        if len(files) > 0:
            files = natsorted(files)
        for file in files:
-          #print(file)
+          print(file)
           if file.endswith("dcm"):
              paths.append(os.path.join(root, file))
              
