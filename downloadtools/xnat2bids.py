@@ -204,6 +204,20 @@ def write_to_file(sessionpath,filename, acqtime):
             f.write('filename\tacq_time\n')       
         # Append the variables to the last line of the file
         f.write(f'{filename}\t{acqtime}\n')
+def format_date(date_string):
+    possible_formats = ['%m-%d-%Y', '%d-%m-%Y', '%Y-%m-%d','%Y%m%d','%m/%d/%Y']  # Add more formats if needed
+    
+    for date_format in possible_formats:
+        try:
+            # Try to parse the input date string using the current format
+            date_obj = datetime.datetime.strptime(date_string, date_format)
+            # Format the date object to MM/DD/YYYY
+            formatted_date = date_obj.strftime('%m-%d-%Y')
+            return date_obj
+        except ValueError:
+            # Continue to the next format if parsing fails
+            continue
+    
 #%%
 # =============================================================================
 #   MAIN FUNCTION
@@ -304,7 +318,7 @@ def main() :
                             continue
                         series_description = ''
                         acquisition_date   = curdir.split('/')[-2]
-                        acquisition_date   = datetime.datetime.strptime(acquisition_date,'%m-%d-%Y')
+                        acquisition_date   = format_date(acquisition_date)#datetime.datetime.strptime(acquisition_date,'%m-%d-%Y')
                         acquisition_time   = ''
                         echo_time          = ''
                         serialnum          = ''

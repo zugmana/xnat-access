@@ -87,4 +87,9 @@ There is now a possiblilty of running downloads and unzipping in parallel.
 v 0.5.3: 
 You can now pass a csv with a list of subjects, one subject per line.
 
+NEW CHANGES v 0.7 :
 
+Removed dependencies for xnatpy.
+The functions are now directly based on requests package for python
+added options for dbsnapshot. You can now select the level, project, sessions, or scans,
+Scan will take longer and check names against robin.

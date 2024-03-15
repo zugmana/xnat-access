@@ -153,7 +153,12 @@ def checkdatabase(xsession, project) :
                     PID = remove_non_numbers(PID)
                 except :
                     AccessionNumber = 99
-                dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(PID), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
+                try :
+                    SeriesName = xscan.dicom_dump(fields = "SeriesDescription")[0]["value"]
+                    print(SeriesName)
+                except :
+                    SeriesName = ""
+                dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(PID), SeriesName, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
         # count = count + 1
         # if count == 5:
         #      break
@@ -178,7 +183,13 @@ def checkdatabasesubject(xsession, project, sdanid, xmrn) :
                 #PID = xscan.dicom_dump(fields = "PatientID")[0]["value"]
             except :
                 AccessionNumber = 99
-            dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(sdanid), xscan.series_description, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
+            
+            SeriesName = xscan.dicom_dump(fields = "SeriesDescription")[0]["value"]
+            print(SeriesName)
+                         
+            #dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(PID), SeriesName, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
+    
+            dbsnapshot.loc[len(dbsnapshot.index)] = ["{}".format(sdanid), SeriesName, xscan.uri, xscan.start_date, ses_date, AccessionNumber]
             PatientName = xscan.dicom_dump(fields = "PatientName")[0]["value"]
             PatientName = simplifystring(PatientName)
             PatientName = PatientName.split('-')
@@ -252,8 +263,9 @@ def anonymize(path_dcm, downloaddir, sdanid) :
 def dcmnii(cmd):
     subprocess.run(cmd)
        
-def convert2nii(path_dcm, downloaddir, sdanid) :
+def convert2nii(path_dcm, downloaddir, sdanid,nworkers=2) :
     cmds = []
+    #print(os.path.join(path_dcm,"sub-{}".format(sdanid)))
     for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
         if not dirs:
             print(root, "converting")
@@ -269,7 +281,8 @@ def convert2nii(path_dcm, downloaddir, sdanid) :
             for f in files :
                 print(os.path.join(root,f))
                 copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
-    with multiprocessing.Pool(processes=2) as pool:
+    #print(cmds)
+    with multiprocessing.Pool(processes=nworkers) as pool:
         pool.map(dcmnii, cmds)
 
 def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip, physio) :

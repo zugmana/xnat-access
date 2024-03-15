@@ -1,43 +1,43 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Created on Thu Mar 14 13:46:33 2024
+
+@author: zugmana2
+"""
 
 import argparse
 import pandas as pd
-import xnat
 import sys
 import os
 import getpass
 import tempfile
 import warnings
+import requests
 #
 if not hasattr(sys, "ps1"):
     from . __version__ import __version__
-from downloadtools.utils import dbreader
-#from downloadtools import dbsearch
-from downloadtools.utils import download_dcm
-from downloadtools.utils import checkdatabase
-from downloadtools.utils import anonymize
-from downloadtools.utils import convert2nii
-from downloadtools.utils import download_dcm_noid
-from downloadtools.utils import download_dcmname
-#from downloadtools.utils import move_to_dest
-from downloadtools.utils import makebids
-from downloadtools.utils import checkdatabasesubject
-from downloadtools.utils import simplifystring
+from downloadtools.restutilities import listsubjects, listsession, listscans, queryxnatID, namecheck,downloadfile ,tupletodownload
 from downloadtools.pgsqlutils import checkrobin
-#%%
+from downloadtools.utils import simplifystring, unzip_and_sort,convert2nii,anonymize,makebids
+
+import multiprocessing
+#from downloadtools import dbsearch
+
+
 def main():
     
        
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
-        dosnapshot = False
-        sdanid = ["24624"]
+        dosnapshot = ""
+        sdanid = ["24624","24733"]#["24624","24733"]
         #sdanid = False
-        date = ["11-04-2023"]#["2023","02-07-2023"]
+        date = ["",""]#
         download = True
         SeriesName = [""]
         unzip = True
-        keepdicom = False
+        keepdicom = True
         search_name = False
         downloaddir = "/EDB/SDAN/temp/test01-12"
         user = None
@@ -47,7 +47,8 @@ def main():
         search_robin = True
         dobids = True
         physio = True
-        nworkers = 2
+        nworkers = 4
+        xnaturl = "https://fmrif-xnat.nimh.nih.gov"
         #os.environ["TMP"] = "/EDB/SDAN/temp/"
     else :
         parser = argparse.ArgumentParser(description="Download data from XNAT v {}. Created by Andre Zugman".format(__version__))
@@ -61,8 +62,8 @@ def main():
         parser.add_argument('-d', '--date', nargs='+',action='store', dest="date", type=str, required=False,
                             help='Session Date in mm-dd-yyyy (i.e.: 12-30-2022).')        
         parser.set_defaults(date=[""])
-        parser.add_argument('--dosnapshot', action='store_true',dest='dosnapshot',
-                            help='save a table with info of data stored in the project.')
+        parser.add_argument('--dosnapshot', action='store',dest='dosnapshot',
+                            help='save a table with info of data stored in the project. Choose level: project,session,scans. Scans will take longer')
         parser.set_defaults(dosnapshot=False)
         parser.add_argument('-s', '--series', nargs='+', action='store', dest='SeriesName', type=str,
                             help='Series Name')
@@ -78,7 +79,7 @@ def main():
                             help='Export a BIDS directory.')
         parser.set_defaults(dobids = False)
         parser.add_argument('--physio', action='store_true',dest='physio',
-                            help='get physio data.')
+                            help='get physio data. Not really working in this version. But physio data is often missing')
         parser.set_defaults(physio = False)
         parser.add_argument('--not-robin', nargs='+', type=str, action='store',dest='MRNid',
                             help="""Do not use robin id. In this case provide the MRN manually with no "-".
@@ -88,7 +89,7 @@ def main():
                             help="""Number of workers. If set to 1 will follow old behavior,
                             if set to > 1 it will allow for multiple downloads and unzipping in parallel.
                             It may not necesserally speed up things for you.""")
-        parser.set_defaults(nworkers = 1)
+        parser.set_defaults(nworkers = 2)
         parser.set_defaults(MRNid = None)
         parser.set_defaults(SeriesName=[""])
         parser.set_defaults(project="01-M-0192")
@@ -110,6 +111,7 @@ def main():
         dobids = args.dobids
         MRNid = args.MRNid
         physio = args.physio
+        xnaturl = "https://fmrif-xnat.nimh.nih.gov"
     #just setting some options
     if physio :
         print("\n")
@@ -119,10 +121,10 @@ def main():
         print("Please inspect your data carefully for any PII")
         print("############################")
         print("\n")
-    if dosnapshot and  isinstance(sdanid, list):
-        dosnapshotsubject = True
-        download = False
-        dosnapshot = False
+    #if dosnapshot and  isinstance(sdanid, list):
+    #    dosnapshotsubject = True
+    #    download = False
+    #    dosnapshot = False
     if keepdicom :
         dobids = False
     if MRNid is None :
@@ -171,131 +173,179 @@ def main():
                 date = date + [""]*diffdates
             elif diffdates < 0: 
                 sys.exit("You provided more dates than subjects. Double check what you are doing")
-    if not os.path.exists(os.path.join("/home",os.environ["USER"],".netrc")) :
-        print (".netrc file not found. Prompting for username and password")
-        user = getpass.getuser()
-        print ("current user is {}".format(user))
-        password = getpass.getpass(prompt="Please enter Password : ")
-    # Check if SSL_CERT_DIR is set
-        # if not os.getenv("SSL_CERT_DIR"):
-        #     print("SSL_CERT_DIR not setup")
-        #     os.environ["SSL_CERT_DIR"] = "/etc/pki/NIH/"
-        #     os.environ["REQUESTS_CA_BUNDLE"] = "/etc/pki/NIH/"
-            
-    with xnat.connect("https://fmrif-xnat.nimh.nih.gov", user=user, password=password) as xsession :
-        if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
-            print("WARNING : tempfile not specified by user. Please consider setting your TMP path before running this script" )
-            print("Please type : export TMP=/home/{}/tmp or some other approapriate path.".format(getpass.getuser()))
-            print("using system default may cause problems")
-            print("Will try /home/{}/tmp".format(getpass.getuser()))
-            tempfile.tempdir = "/home/{}/tmp".format(getpass.getuser())
-            if not os.path.isdir("/home/{}/tmp".format(getpass.getuser())) :
-                os.makedirs("/home/{}/tmp".format(getpass.getuser()))
-            
-        if dosnapshot :
+    SeriesName = [simplifystring(x) for x in SeriesName]
+    saveshot = False
+    #End of setting options
+    # Getuser and password
+    user = getpass.getuser()
+    print ("current user is {}".format(user))
+    password = getpass.getpass(prompt="Please enter Password : ")
+    if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
+        warnings.warn("WARNING : tempfile not specified by user. Please consider setting your TMP path before running this script" )
+        print("Please type : export TMP=/home/{}/tmp or some other approapriate path.".format(getpass.getuser()))
+        print("using system default may cause problems")
+        print("Will try /home/{}/tmp".format(getpass.getuser()))
+        tempfile.tempdir = "/home/{}/tmp".format(getpass.getuser())
+        if not os.path.isdir("/home/{}/tmp".format(getpass.getuser())) :
+            os.makedirs("/home/{}/tmp".format(getpass.getuser()))
+    with requests.sessions.Session() as connect:
+        
+        connect.auth = (user, password)
+        connect.xnaturl = xnaturl
+        connect.project = project
+        connect.base_url = f'{xnaturl}/data/projects/{project}'
+        # test connection
+        response = connect.get(connect.base_url)
+        if not response.ok:
+            warnings.warn("You can't access xnat project {project} with the credenctials provided.")
+            sys.exit("Ending program")
+        if dosnapshot == "project":
             print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
-            #dbsearched = dbreader(0)
-            #dbsearched["subjects"] = dbsearched.loc[:,1].str.replace("-","")
-            #dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[a-z]+","", regex=True)
-            #dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(r"[A-Z]+","", regex=True)
-            #dbsearched["subjects"] = dbsearched.loc[:,"subjects"].str.replace(",","")
-            #dbsearched["subjects"] = pd.to_numeric(dbsearched["subjects"], errors = "coerce", downcast="integer")
+            dbsnapshot = pd.DataFrame()
+            allsubj = listsubjects(connect)
             dbsearched = checkrobin(20000000,allsubj=True)
-            dbsnapshot = checkdatabase(xsession, project)
-            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot-xnatpartial.csv"),index = False)
-            dbsnapshot["subjects"] = pd.to_numeric(dbsnapshot["mrn"],errors = "coerce", downcast="integer")
-            dbsnapshot = dbsnapshot.merge(dbsearched,on= "subjects",how="inner")
-            #dbsnapshot = dbsnapshot.rename(columns={0: "sdanid", 1: "MRN", 2: "DOB",3: "Last Name", 4: "First Name" })
-            #dbsnapshot.drop([5,6,7], axis = 1, inplace = True)
-            #dbsnapshot["subjects"] = dbsnapshot["subjects"].astype(int)
-            dbsnapshot = dbsnapshot.reindex(columns= ['sdanid', 'MRN',"AccessionNumber",
-                   'DOB', 'Last Name', 'First Name','seriesName', 'uri', 'date-series', 'date-session'])
-            os.makedirs(os.path.join(downloaddir),  exist_ok = True) 
-            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False)
+            allsubj = allsubj.rename(columns={'label': 'mrn'})
+            allsubj["mrn"] = pd.to_numeric(allsubj["mrn"],errors = "coerce", downcast="integer")
+            allsubj.dropna(subset=["mrn"],inplace=True)
+            dbsearched["mrn"] = pd.to_numeric(dbsearched["mrn"],errors = "coerce", downcast="integer")
+            dbsearched.dropna(subset=["mrn"],inplace=True)
+            dbsnapshot = allsubj.merge(dbsearched,on= "mrn",how="inner")
+            dbsnapshot["mrn"] = dbsnapshot["mrn"].apply(lambda x: str(int(x)))
+            
     
             download = False
-        
-        if dosnapshotsubject :
+            saveshot = True
+        if dosnapshot == "session":
             print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
-            if MRNid is not None:
-                for idd,i in enumerate(sdanid) :
-                    try :
-                        dbsnapshot,PatientName = checkdatabasesubject(xsession, project, i, MRNid[idd])
-                        if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
-                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header=False,mode="a")
+            dbsnapshot = pd.DataFrame()
+            #headerinfo = pd.DataFrame()
+            if sdanid:
+                for idd,i in enumerate(sdanid):
+                    dbsearched = checkrobin(i)
+                    if len(dbsearched) == 1:
+                        MRN = dbsearched.loc[0,"mrn"]
+                        if not MRN:
+                            warnings.warn(f"Oh No! Couldn't find MRN for {i}. Check the database")
+                            continue
+                    else:
+                        print(f"something went wrong when checking database for this subject {i}. please check robin")
+                        continue
+                    xnatID = queryxnatID(MRN,connect)
+                    # if not xnatID:
+                    #     continue
+                    xnatID = xnatID.loc[0,"ID"]
+                    sessions = listsession(connect,xnatID,date=date[idd])
+                    sessions = sessions.rename(columns={'subject_label': 'mrn'})
+                    sessions["mrn"] = pd.to_numeric(sessions["mrn"],errors = "coerce", downcast="integer")
+                    sessions.dropna(subset=["mrn"],inplace=True)
+                    dbsearched["mrn"] = pd.to_numeric(dbsearched["mrn"],errors = "coerce", downcast="integer")
+                    dbsearched.dropna(subset=["mrn"],inplace=True)
+                    dbsnapshot = sessions.merge(dbsearched,on= "mrn",how="inner")
+                    dbsnapshot["mrn"] = dbsnapshot["mrn"].apply(lambda x: str(int(x)))
+                    
+                    
+            else :
+                allsessions = listsession(connect)
+                dbsearched = checkrobin(20000000,allsubj=True)
+                allsessions = allsessions.rename(columns={'subject_label': 'mrn'})
+                allsessions["mrn"] = pd.to_numeric(allsessions["mrn"],errors = "coerce", downcast="integer")
+                allsessions.dropna(subset=["mrn"],inplace=True)
+                dbsearched["mrn"] = pd.to_numeric(dbsearched["mrn"],errors = "coerce", downcast="integer")
+                dbsearched.dropna(subset=["mrn"],inplace=True)
+                dbsnapshot = allsessions.merge(dbsearched,on= "mrn",how="inner")
+                dbsnapshot["mrn"] = dbsnapshot["mrn"].apply(lambda x: str(int(x)))
+            download = False
+            saveshot = True    
+            
+        if dosnapshot == "scans":
+            print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
+            #print(f"getting a list of scans for subject {}")
+            #allsessions = listsession(connect)
+            dbsnapshot = pd.DataFrame()
+            headerinfo = pd.DataFrame()
+            if sdanid:
+                for idd,i in enumerate(sdanid):
+                    if search_robin :
+                        dbsearched = checkrobin(i)
+                        if len(dbsearched) == 1:
+                            MRN = dbsearched.loc[0,"mrn"]
+                            if not MRN:
+                                warnings.warn(f"Oh No! Couldn't find MRN for {i}. Check the database")
+                                continue
                         else:
-                            os.makedirs(downloaddir,exist_ok = True)
-                            dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False) 
-                    except KeyError:
-                        print("subject:{} not in this XNAT project".format(i))
-            else:
-               for idd, i in enumerate(sdanid) :
-                   #try :
-                       
-                       #print(i)
-                       #dbsearched = dbreader(i)
-                       #print(dbsearched)
-                       dbsearched = checkrobin(i)
-                       if len(dbsearched) == 1:
-                           MRN = dbsearched.loc[0,"mrn"]
-                           if not MRN:
-                               warnings.warn(f"Oh No! Couldn't find MRN for {i}. Check the database")
-                               continue
-                       else:
-                           print(f"something went wrong when checking database for this subject {i}. please check robin")
+                            print(f"something went wrong when checking database for this subject {i}. please check robin")
+                            continue
+                    else:
+                        MRN = MRNid[idd]
+                        dbsearched = []
+                    xnatID = queryxnatID(MRN,connect)
+                    # if not xnatID:
+                    #     continue
+                    xnatID = xnatID.loc[0,"ID"]
+                    sessions = listsession(connect,xnatID,date=date[idd])
+                    scans,hdr = listscans(connect,sessions,get_header=True)
+                    namesdicom = headerinfo["Patient&rsquo;s Name"].apply(simplifystring).unique()
+                    namesdicom = list(namesdicom)
+                    if len(namesdicom) > 1:
+                        print(f"ooops. more than one name in the dicoms of {i}: {namesdicom}")
+                        continue
+                    if search_robin:
+                        namecheck(dbsearched,namesdicom[0])
+                    scans["sdanid"] = i
+                    dbsnapshot = pd.concat([dbsnapshot,scans])
+                    headerinfo = pd.concat([headerinfo,hdr])
+            else :
+               print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv") 
+               print("This will download data for everyone. It will take a long time... Will not perform dicom dump")
+               dbsearched = checkrobin(20000000,allsubj=True)
+               for i in dbsearched["sdan_id"].to_list():
+                   dbsearchedind = checkrobin(i)
+                   if len(dbsearchedind) == 1:
+                       MRN = dbsearchedind.loc[0,"mrn"]
+                       if not MRN:
+                           warnings.warn(f"Oh No! Couldn't find MRN for {i}. Check the database")
                            continue
-                        #MRN = MRN.replace("-","")
-                       #LastName = dbsearched.loc[0,3]
-                       #LastName = LastName.replace(",","")
-                       #FirstName = dbsearched.loc[0,4]
-                       #print(f"MRN:{MRN}")
-                       dbsnapshot,PatientName = checkdatabasesubject(xsession,project,i,MRN)
-                       FirstName = simplifystring(dbsearched.loc[0,"first_name"])
-                       FirstName = FirstName.split('-')
-                       LastName = simplifystring(dbsearched.loc[0,"last_name"])
-                       LastName = LastName.split('-')
-                       NamesRobin = FirstName + LastName
-                      
-                       mismatched_names = [name for name in NamesRobin if name not in PatientName]
-
-                       # Check if there are any mismatches
-                       if mismatched_names:
-                        warnings.warn("Warning: The following names from list ROBIN are not in the DICOM PatientName field:")
-                        for name in mismatched_names:
-                            print(name)
-                       mismatched_names = [name for name in PatientName if name not in NamesRobin]
-
-                       # Check if there are any mismatches
-                       if mismatched_names:
-                        warnings.warn("Warning: The following names from list DICOM PatientName are not in the ROBIN field:")
-                        for name in mismatched_names:
-                            print(name)
- 
-                     
-                       if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
-                           dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header =False, mode='a')
-                       else :
-                           os.makedirs(downloaddir,exist_ok = True)
-                           dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index=False)
-                   #except KeyError:
-                       #print("subject:{} not in this XNAT project".format(i))
-        if download :
-            #set up temp folder to work on
-            #tempfile.tempdir=tempfile.gettempdir()
+                   else:
+                       print(f"something went wrong when checking database for this subject {i}. please check robin")
+                       continue
+                   xnatID = queryxnatID(MRN,connect)
+                   if not isinstance(xnatID, pd.DataFrame):
+                        continue
+                   xnatID = xnatID.loc[0,"ID"]
+                   sessions = listsession(connect,xnatID)
+                   scans,_ = listscans(connect,sessions,get_header=False)
+                   dbsnapshot = pd.concat([dbsnapshot,scans])
+                   headerinfo = pd.concat([headerinfo,hdr])
+                   namesdicom = headerinfo["Patient&rsquo;s Name"].apply(simplifystring).unique()
+                   namesdicom = list(namesdicom)
+                   if len(namesdicom) > 1:
+                       print(f"ooops. more than one name in the dicoms of {i}: {namesdicom}")
+                       continue
+                   
+            download = False
+            saveshot = True
+        if dosnapshot :
+            if dosnapshot not in ["scans","session","project"]:
+                
+                print("This dbsnapshot input is not valid.")
+                sys.exit()
+        if saveshot:
+            if os.path.isfile(os.path.join(downloaddir,"dbsnapshot.csv")):
+                dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index = False, header =False, mode='a')
+            else :
+                os.makedirs(downloaddir,exist_ok = True)
+                dbsnapshot.to_csv(os.path.join(downloaddir,"dbsnapshot.csv"),index=False)
+                   
+        if download == True:
             os.makedirs(os.path.join(downloaddir),  exist_ok = True)
             with tempfile.TemporaryDirectory(suffix=None, prefix=None) as tempdir :
-            
-                if sdanid :
-                    for idd,i in enumerate(sdanid) :
-                        
-                        #print (i)
+                downloadlist = []
+                unzipargs = []
+                anonymizeargs = []
+                if sdanid:
+                    
+                    for idd,i in enumerate(sdanid):
                         if search_robin :
-                            #dbsearched = dbreader(i)
-                            #MRN = dbsearched.loc[0,1]
-                            #MRN = MRN.replace("-","")
-                            #LastName = dbsearched.loc[0,3]
-                            #LastName = LastName.replace(",","")
-                            #FirstName = dbsearched.loc[0,4]
                             dbsearched = checkrobin(i)
                             if len(dbsearched) == 1:
                                 MRN = dbsearched.loc[0,"mrn"]
@@ -305,45 +355,87 @@ def main():
                             else:
                                 print(f"something went wrong when checking database for this subject {i}. please check robin")
                                 continue
-                        else :
+                        else:
                             MRN = MRNid[idd]
-                         
-                        download_dcm(xsession, project, MRN, i, date[idd], SeriesName, tempdir, unzip, physio, user, password , max_processes = nworkers)
-                        if keepdicom :
-                            downloaddirlocal = os.path.join(downloaddir,"dicom")
-                            anonymize(tempdir,downloaddirlocal, i)
-                        else :
-                            downloaddirlocal = os.path.join(downloaddir,"nifti")
-                            convert2nii(tempdir,downloaddirlocal, i)
-                        if search_name :
-                            print ("Downloading by Name")
-                            FirstName = dbsearched.loc[0,"first_name"]
-                            LastName = dbsearched.loc[0,"lasname_name"]
-                            download_dcmname(xsession, project, FirstName, LastName, i, date[idd], SeriesName, tempdir, unzip)
-                            if keepdicom :
-                                downloaddirlocal = os.path.join(downloaddir,"dicom",date[idd])
-                                anonymize(tempdir,downloaddirlocal, i)
-                            else :
-                                downloaddirlocal = os.path.join(downloaddir,"nifti",date[idd])
-                                convert2nii(tempdir,downloaddirlocal, i)
-                if not sdanid :
-                    print ("no id provided - looking for date")
-                    print ("this can take longer. Please wait")
-                    if not search_robin :
-                        print ("you cannot look by date without robin. Data would keep MRN")
-                        sys.exit("ERROR")
-                    sdanid = download_dcm_noid( xsession, project, date, SeriesName, tempdir, unzip, physio)
-                    for i in sdanid :
-                        if keepdicom :
-                            downloaddirlocal = os.path.join(downloaddir,"dicom")
-                            anonymize(tempdir,downloaddirlocal, i)
-                        else :
-                            downloaddirlocal = os.path.join(downloaddir,"nifti")
-                            convert2nii(tempdir,downloaddirlocal, i)
-                
-                if dobids :
-                    makebids(downloaddirlocal,tempdir, True)
-        
-          
+                        xnatID = queryxnatID(MRN,connect)
+                        # if not xnatID:
+                        #     continue
+                        xnatID = xnatID.loc[0,"ID"]
+                        sessions = listsession(connect,xnatID,date=date[idd])
+                        scans,hdr = listscans(connect,sessions,get_header=True)
+                        scans['series_description'] = scans['series_description'].apply(simplifystring)
+                        
+                        scans = scans[scans['series_description'].str.contains('|'.join(SeriesName))]
+                        
+                        
+                        #Get session cookies
+                        
+                        # Create list of downloads commands
+                        #baseurl,fileuri,destination,cookies
+                        response = connect.get(connect.base_url) # This should allow the seesion to be handled by requests and not die
+                        if response.ok:
+                            cookies = requests.utils.dict_from_cookiejar(connect.cookies)
+                        while not response.ok : # Try restarting connect and get cookies
+                            connect.auth = (user, password)
+                            connect.xnaturl = xnaturl
+                            connect.project = project
+                            connect.base_url = f'{xnaturl}/data/projects/{project}'
+                            # test connection
+                            response = connect.get(connect.base_url)
+                            cookies = requests.utils.dict_from_cookiejar(connect.cookies)
+                            
+                        for _,j in scans.loc[scans["xsiType"] == "xnat:mrScanData"].iterrows():
+                            downloadpath = os.path.join(tempdir,"DICOM",
+                                                        f"sub-{i}",
+                                                        j["date"],
+                                                        f"{j['series_description']}_{j['ID']}.zip")
+                            unzippath = os.path.join(tempdir,"DICOM",
+                                                        f"sub-{i}",
+                                                        j["date"],
+                                                        f"{j['series_description']}_{j['ID']}")
+                            dicompaths = os.path.join(downloaddir,"DICOM",
+                                                        f"sub-{i}",
+                                                        j["date"],
+                                                        f"{j['series_description']}_{j['ID']}")
+                            downloadlist.append((connect.xnaturl,f'{j["URI"]}/resources/DICOM/files',downloadpath,cookies))
+                            unzipargs.append((downloadpath,unzippath))
+                            anonymizeargs.append((unzippath,dicompaths,i))
+                        print("downloading images - please wait")
+                    with multiprocessing.Pool(processes=nworkers) as pool:
+                        pool.starmap(downloadfile, downloadlist)
+                        pool.map(unzip_and_sort, unzipargs)
+                    if keepdicom :
+                        #downloaddirlocal = os.path.join(downloaddir,"DICOM")
+                        with multiprocessing.Pool(processes=nworkers) as pool:
+                            pool.starmap(anonymize, anonymizeargs)
+                        #anonymize(tempdir,downloaddirlocal, i)
+                    else :
+                        print("convert to nii")
+                        downloaddirlocal = os.path.join(downloaddir,"nifti")
+                        os.makedirs(downloaddirlocal,exist_ok=True)
+                        convert2nii(os.path.join(tempdir,"DICOM"),downloaddirlocal, i)
+                        
+                    if dobids :
+                        makebids(downloaddirlocal,tempdir, True)
+                    else :
+                        print("download with no sdanid not yet implemented")
+                        sys.exit()
+            #subjsees = listsession(connect,)
+            # dbsearched = checkrobin(20000000,allsubj=True)
+            # allsessions = allsessions.rename(columns={'subject_label': 'mrn'})
+            # allsessions["mrn"] = pd.to_numeric(allsessions["mrn"],errors = "coerce", downcast="integer")
+            # allsessions.dropna(subset=["mrn"],inplace=True)
+            # dbsearched["mrn"] = pd.to_numeric(dbsearched["mrn"],errors = "coerce", downcast="integer")
+            # dbsearched.dropna(subset=["mrn"],inplace=True)
+            # dbsnapshot = allsessions.merge(dbsearched,on= "mrn",how="inner")
+            # dbsnapshot["mrn"] = dbsnapshot["mrn"].apply(lambda x: str(int(x)))
+            # os.makedirs(os.path.join(downloaddir),  exist_ok = True)
+            # dbsnapshot.to_csv(os.path.join(downloaddir,"session-dbsnapshot.csv"),index = False)
+            # download = False    
+    # Check if SSL_CERT_DIR is set
+        # if not os.getenv("SSL_CERT_DIR"):
+        #     print("SSL_CERT_DIR not setup")
+        #     os.environ["SSL_CERT_DIR"] = "/etc/pki/NIH/"
+        #     os.environ["REQUESTS_CA_BUNDLE"] = "/etc/pki/NIH/"
 if __name__ == '__main__':
-    main()
+    main()    
