@@ -19,7 +19,7 @@ if not hasattr(sys, "ps1"):
     from . __version__ import __version__
 from downloadtools.restutilities import listsubjects, listsession, listscans, queryxnatID, namecheck,downloadfile ,tupletodownload
 from downloadtools.pgsqlutils import checkrobin
-from downloadtools.utils import simplifystring, unzip_and_sort,convert2nii,anonymize,makebids
+from downloadtools.utils import simplifystring, unzip_and_sort,convert2nii,anonymize,makebids,convert2nii2
 
 import multiprocessing
 #from downloadtools import dbsearch
@@ -29,21 +29,21 @@ def main():
     
        
     if hasattr(sys, "ps1"):
-        project = "18-M-0037"
-        dosnapshot = "scans"
-        sdanid = ["24799"]#["24624","24733"]
+        project = "02-M-0021"
+        dosnapshot = False
+        sdanid = ["23262","23298"]#["24624","24733"]
         #sdanid = False
-        date = ["",""]#
+        date = ["11/27/2018","04/20/2019"]#
         download = True
-        SeriesName = [""]
+        SeriesName = ["anat"]
         unzip = True
-        keepdicom = True
+        keepdicom = False
         search_name = False
         downloaddir = "/EDB/SDAN/temp/test01-12"
         user = None
         password = None
         MRNid = None 
-        dosnapshotsubject = True
+        dosnapshotsubject = False
         search_robin = True
         dobids = True
         physio = True
@@ -342,6 +342,7 @@ def main():
                 downloadlist = []
                 unzipargs = []
                 anonymizeargs = []
+                niftiargs = []
                 if sdanid:
                     
                     for idd,i in enumerate(sdanid):
@@ -357,16 +358,19 @@ def main():
                                 continue
                         else:
                             MRN = MRNid[idd]
+                        #print(MRN)
                         xnatID = queryxnatID(MRN,connect)
+                        #print(xnatID)
                         # if not xnatID:
                         #     continue
                         xnatID = xnatID.loc[0,"ID"]
                         sessions = listsession(connect,xnatID,date=date[idd])
+                        #print(sessions)
                         scans,hdr = listscans(connect,sessions,get_header=True)
                         scans['series_description'] = scans['series_description'].apply(simplifystring)
-                        
+                        print(scans)
                         scans = scans[scans['series_description'].str.contains('|'.join(SeriesName))]
-                        
+                        #print(scans)
                         
                         #Get session cookies
                         
@@ -398,6 +402,7 @@ def main():
                             downloadlist.append((connect.xnaturl,f'{j["URI"]}/resources/DICOM/files',downloadpath,cookies))
                             unzipargs.append((downloadpath,unzippath))
                             anonymizeargs.append((dicomorigpaths,dicompaths,i))
+                        niftiargs.append((os.path.join(tempdir,"DICOM"),os.path.join(downloaddir,"nifti"),i)) # This should be one per subject
                         print("downloading images - please wait")
                     with multiprocessing.Pool(processes=nworkers) as pool:
                         pool.starmap(downloadfile, downloadlist)
@@ -409,11 +414,14 @@ def main():
                         #anonymize(tempdir,downloaddirlocal, i)
                     else :
                         print("convert to nii")
-                        downloaddirlocal = os.path.join(downloaddir,"nifti")
-                        os.makedirs(downloaddirlocal,exist_ok=True)
-                        convert2nii(os.path.join(tempdir,"DICOM"),downloaddirlocal, i)
+                        with multiprocessing.Pool(processes=nworkers) as pool:
+                            pool.starmap(convert2nii2, niftiargs)
+                        # downloaddirlocal = os.path.join(downloaddir,"nifti")
+                        # os.makedirs(downloaddirlocal,exist_ok=True)
+                        # convert2nii(os.path.join(tempdir,"DICOM"),downloaddirlocal, i)
                         
                     if dobids :
+                        downloaddirlocal = os.path.join(downloaddir,"nifti")
                         makebids(downloaddirlocal,tempdir, True)
                 else :
                     print("download with no sdanid not yet implemented")

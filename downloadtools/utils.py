@@ -286,6 +286,29 @@ def convert2nii(path_dcm, downloaddir, sdanid,nworkers=2) :
     with multiprocessing.Pool(processes=nworkers) as pool:
         pool.map(dcmnii, cmds)
 
+def convert2nii2(path_dcm, downloaddir, sdanid) :
+    #cmds = []
+    #print(os.path.join(path_dcm,"sub-{}".format(sdanid)))
+    for root, dirs, files in os.walk(os.path.join(path_dcm,"sub-{}".format(sdanid))):
+        if not dirs:
+            print(root, "converting")
+            if os.path.isdir(root.replace(path_dcm,downloaddir)):
+                continue
+            os.makedirs(root.replace(path_dcm,downloaddir))
+            
+            dcmprocess = ["dcm2niix","-f",f"sub-{sdanid}_%f","-z","y","-o",f"{root.replace(path_dcm,downloaddir)}",f"{root}"]
+            #cmds.append(dcmprocess)
+            subprocess.run(dcmprocess)
+            # for proc in dcmprocess:
+            #     	proc.wait()
+        if "physio" in root :
+            for f in files :
+                print(os.path.join(root,f))
+                copy2(os.path.join(root,f), root.replace(path_dcm,downloaddir))
+    #print(cmds)
+   
+
+
 def download_dcm_noid(xsession, project, date, seriesName, downloaddir, unzip, physio) :
     #print(xmrn)
     xproject = xsession.projects[project]
