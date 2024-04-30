@@ -14,6 +14,7 @@ import getpass
 import tempfile
 import warnings
 import requests
+import time
 #
 if not hasattr(sys, "ps1"):
     from . __version__ import __version__
@@ -29,17 +30,17 @@ def main():
     
        
     if hasattr(sys, "ps1"):
-        project = "02-M-0021"
-        dosnapshot = False
-        sdanid = ["23262","23298"]#["24624","24733"]
+        project = "01-M-0192"
+        dosnapshot = "scans"
+        sdanid = ["24626"]#["23262","23298"]#["24624","24733"]
         #sdanid = False
-        date = ["11/27/2018","04/20/2019"]#
+        date = ["04/15/2024"]#
         download = True
         SeriesName = ["anat"]
         unzip = True
-        keepdicom = False
+        keepdicom = True
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/test01-12"
+        downloaddir = "/EDB/SDAN/temp/test03-19"
         user = None
         password = None
         MRNid = None 
@@ -197,7 +198,7 @@ def main():
         # test connection
         response = connect.get(connect.base_url)
         if not response.ok:
-            warnings.warn("You can't access xnat project {project} with the credenctials provided.")
+            warnings.warn(f"You can't access xnat project {project} with the credenctials provided.")
             sys.exit("Ending program")
         if dosnapshot == "project":
             print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
@@ -279,11 +280,12 @@ def main():
                         MRN = MRNid[idd]
                         dbsearched = []
                     xnatID = queryxnatID(MRN,connect)
-                    # if not xnatID:
-                    #     continue
+                    if not isinstance(xnatID, pd.DataFrame):
+                         continue
                     xnatID = xnatID.loc[0,"ID"]
                     sessions = listsession(connect,xnatID,date=date[idd])
                     scans,hdr = listscans(connect,sessions,get_header=True)
+                    scans["SDANID"] = i
                     namesdicom = hdr["Patient&rsquo;s Name"].apply(simplifystring).unique()
                     namesdicom = list(namesdicom)
                     if len(namesdicom) > 1:
@@ -314,8 +316,12 @@ def main():
                    xnatID = xnatID.loc[0,"ID"]
                    sessions = listsession(connect,xnatID)
                    scans,hdr = listscans(connect,sessions,get_header=False)
+                   scans["SDANID"] = i
                    dbsnapshot = pd.concat([dbsnapshot,scans])
                    headerinfo = pd.concat([headerinfo,hdr])
+                   if len(hdr) == 0:
+                       continue
+                   #print(hdr.columns)
                    namesdicom = hdr["Patient&rsquo;s Name"].apply(simplifystring).unique()
                    namesdicom = list(namesdicom)
                    if len(namesdicom) > 1:
@@ -360,6 +366,8 @@ def main():
                             MRN = MRNid[idd]
                         #print(MRN)
                         xnatID = queryxnatID(MRN,connect)
+                        if not isinstance(xnatID, pd.DataFrame):
+                             continue
                         #print(xnatID)
                         # if not xnatID:
                         #     continue
@@ -368,7 +376,7 @@ def main():
                         #print(sessions)
                         scans,hdr = listscans(connect,sessions,get_header=True)
                         scans['series_description'] = scans['series_description'].apply(simplifystring)
-                        print(scans)
+                        #print(scans)
                         scans = scans[scans['series_description'].str.contains('|'.join(SeriesName))]
                         #print(scans)
                         
@@ -376,7 +384,8 @@ def main():
                         
                         # Create list of downloads commands
                         #baseurl,fileuri,destination,cookies
-                        response = connect.get(connect.base_url) # This should allow the seesion to be handled by requests and not die
+                        response = connect.get(connect.base_url)# This should allow the seesion to be handled by requests and not die
+                        #time.sleep(30)
                         if response.ok:
                             cookies = requests.utils.dict_from_cookiejar(connect.cookies)
                         while not response.ok : # Try restarting connect and get cookies
@@ -386,6 +395,7 @@ def main():
                             connect.base_url = f'{xnaturl}/data/projects/{project}'
                             # test connection
                             response = connect.get(connect.base_url)
+                            #time.sleep(30)
                             cookies = requests.utils.dict_from_cookiejar(connect.cookies)
                             
                         for _,j in scans.loc[scans["xsiType"] == "xnat:mrScanData"].iterrows():

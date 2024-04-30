@@ -294,7 +294,7 @@ def convert2nii2(path_dcm, downloaddir, sdanid) :
             print(root, "converting")
             if os.path.isdir(root.replace(path_dcm,downloaddir)):
                 continue
-            os.makedirs(root.replace(path_dcm,downloaddir))
+            os.makedirs(root.replace(path_dcm,downloaddir),exist_ok=True)
             
             dcmprocess = ["dcm2niix","-f",f"sub-{sdanid}_%f","-z","y","-o",f"{root.replace(path_dcm,downloaddir)}",f"{root}"]
             #cmds.append(dcmprocess)

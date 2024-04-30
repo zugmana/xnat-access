@@ -65,15 +65,36 @@ def listscans(session,sessiontable,get_header=False):
         #                          'xnat:mrScanData'))
         # columns = ''.join(('xnat:mrScanData'))
         query = f'{session.base_url}/subjects/{xnatid}/experiments/{sesID}/scans?format=json'
-        #print(query)
+        print(query)
         result = session.get(query)
         datases = pd.DataFrame.from_dict(result.json()["ResultSet"]["Result"])
+        datases["UID"] = ""
+        for ii,jj in datases.loc[datases["xsiType"] == "xnat:mrScanData"].iterrows():
+            columns = ''.join(('xnat:mrSessionData/label,',
+                                      'xnat:mrSessionData/ID,',
+                                      'xnat:mrSessionData/date,',
+                                      'xnat:mrScanData,',
+                                      'UID,',
+                                      'series_description,',
+                                      'type,',
+                                      'xnat:imageScanData/quality,',
+                                      'scanner'))
+            query = f'{session.base_url}/subjects/{xnatid}/experiments/{sesID}/scans/{jj["ID"]}?format=json&columns={columns}'
+            print(query)
+            result = session.get(query)
+            datascan = pd.DataFrame.from_dict(result.json()["items"][0]['data_fields'], orient='index').T
+            #print(datascan)
+            if "UID" in datascan.columns:    
+                datases.loc[ii,"UID"] = datascan.loc[0,"UID"]
+            else:
+                datases.loc[ii,"UID"] = "NaN"
         datases["sesID"] = sesID
         datases["subject_label"] = j["subject_label"]
         datases["xnatID"] = j['xnat:mrsessiondata/subject_id']
         datases["project"] = j['xnat:mrsessiondata/project']
         datases["date"] = j['xnat:mrsessiondata/date']
-        
+        datases["session_UID"] =j['xnat:mrsessiondata/uid']
+            
         #datases.set_index(['sesID'], inplace=True)
         if get_header:
             #datahdr[sesID] = {}
