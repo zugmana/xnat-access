@@ -31,14 +31,14 @@ def main():
        
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
-        dosnapshot = "scans"
-        sdanid = ["24626"]#["23262","23298"]#["24624","24733"]
+        dosnapshot = False
+        sdanid = ["24761"]#["23262","23298"]#["24624","24733"]
         #sdanid = False
-        date = ["04/15/2024"]#
+        date = [""]#
         download = True
-        SeriesName = ["anat"]
+        SeriesName = [""]
         unzip = True
-        keepdicom = True
+        keepdicom = False
         search_name = False
         downloaddir = "/EDB/SDAN/temp/test03-19"
         user = None
@@ -371,10 +371,19 @@ def main():
                         #print(xnatID)
                         # if not xnatID:
                         #     continue
+                        #print(i)
+                        #print(date[idd])
                         xnatID = xnatID.loc[0,"ID"]
                         sessions = listsession(connect,xnatID,date=date[idd])
-                        #print(sessions)
+                        #print(sessions['xnat:mrsessiondata/date'])
                         scans,hdr = listscans(connect,sessions,get_header=True)
+                        #print(scans)
+                        if len(scans) == 0:
+                            print("\n")
+                            print("########################################################")
+                            warnings.warn(f" =( Couldn't find {i} scans on date {date[idd]}. Check the database for project and date")
+                            print("########################################################")
+                            continue
                         scans['series_description'] = scans['series_description'].apply(simplifystring)
                         #print(scans)
                         scans = scans[scans['series_description'].str.contains('|'.join(SeriesName))]

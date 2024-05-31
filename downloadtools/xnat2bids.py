@@ -479,10 +479,10 @@ def main() :
                               'blipreverse'          in series_description or \
                               'blipup'               in series_description or \
                               'blipdown'             in series_description or \
-                              'matchingpe'           in series_description or \
+                              'matching'           in series_description or \
                               'matchingblippe'       in series_description or \
                               'oppositeblippe'       in series_description or \
-                              'oppositepe'           in series_description: # --------------
+                              'opposite'           in series_description: # --------------
                             # These are distortion correction scans
                             datatype = 'fmap'
                             modstr   = '_epi'
@@ -1180,7 +1180,7 @@ def main() :
                             acqstr     = '_acq-MBME'
                             multi_echo = True
     
-                        elif 'fmrifepi18x18x20mmmb' == series_description and \
+                        elif 'fmrifepi18x18x18mmmb6' == series_description and \
                               not 'distortioncorrection' in series_description: # -----
                             # This is resting multi-echo
                             datatype   = 'func'
