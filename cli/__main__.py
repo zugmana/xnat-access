@@ -178,8 +178,8 @@ def main():
     saveshot = False
     #End of setting options
     # Getuser and password
-    #user = getpass.getuser()
-    user = getpass.getpass(prompt="Please enter username : ")
+    user = getpass.getuser()
+    #user = getpass.getpass(prompt="Please enter username : ")
     print ("current user is {}".format(user))
     password = getpass.getpass(prompt="Please enter Password : ")
     if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
@@ -190,7 +190,7 @@ def main():
         tempfile.tempdir = "/home/{}/tmp".format(getpass.getuser())
         if not os.path.isdir("/home/{}/tmp".format(getpass.getuser())) :
             os.makedirs("/home/{}/tmp".format(getpass.getuser()))
-    with requests.sessions.Session() as connect:
+    with requests.session() as connect:
         
         connect.auth = (user, password)
         connect.xnaturl = xnaturl
@@ -199,22 +199,29 @@ def main():
         # test connection
         response = connect.get(connect.base_url)
         if not response.ok:
-            print(f"You can't access xnat project {project} with the credenctials provided. Will try alternate method")
-            #fall back on alternative auth method
-            
+            print(f"You can't access XNAT project {project} with the credentials provided. Will try alternate method")
+
+            # Fallback on alternative auth method
             payload = read_config_connect()
             payload["username"] = user
             payload["password"] = password
-            conect = requests.Session()
-            #del(connect.auth)
-            print(payload)
-            print(f"{xnaturl}/login")
-            response = conect.post(f"{xnaturl}/login",data=payload)
-            print(response.text)
-            response = conect.get(connect.base_url)
-            if not response.ok:
-                warnings.warn(f"You can't access xnat project {project} with the credenctials provided.")
-                sys.exit("Ending program")
+            
+            with requests.Session() as fallback_connect:
+                response = fallback_connect.post(f"{xnaturl}/login", data=payload)
+                
+                if response.ok:
+                    # Copy cookies from fallback_connect to connect
+                    connect.cookies.update(fallback_connect.cookies)
+                    connect.auth = None
+                    
+                    response = connect.get(connect.base_url)
+                    
+                    if response.ok:
+                        print(f"Successfully accessed XNAT project {project} with alternative method.")
+            
+                    if not response.ok:
+                        warnings.warn(f"You can't access xnat project {project} with the credenctials provided.")
+                        sys.exit("Ending program")
         if dosnapshot == "project":
             print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
             dbsnapshot = pd.DataFrame()
