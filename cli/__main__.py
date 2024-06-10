@@ -18,7 +18,7 @@ import time
 #
 if not hasattr(sys, "ps1"):
     from . __version__ import __version__
-from downloadtools.restutilities import listsubjects, listsession, listscans, queryxnatID, namecheck,downloadfile ,tupletodownload
+from downloadtools.restutilities import listsubjects, listsession, listscans, queryxnatID, namecheck,downloadfile ,tupletodownload,read_config_connect
 from downloadtools.pgsqlutils import checkrobin
 from downloadtools.utils import simplifystring, unzip_and_sort,convert2nii,anonymize,makebids,convert2nii2
 
@@ -178,7 +178,8 @@ def main():
     saveshot = False
     #End of setting options
     # Getuser and password
-    user = getpass.getuser()
+    #user = getpass.getuser()
+    user = getpass.getpass(prompt="Please enter username : ")
     print ("current user is {}".format(user))
     password = getpass.getpass(prompt="Please enter Password : ")
     if not (os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP")) :
@@ -198,8 +199,22 @@ def main():
         # test connection
         response = connect.get(connect.base_url)
         if not response.ok:
-            warnings.warn(f"You can't access xnat project {project} with the credenctials provided.")
-            sys.exit("Ending program")
+            print(f"You can't access xnat project {project} with the credenctials provided. Will try alternate method")
+            #fall back on alternative auth method
+            
+            payload = read_config_connect()
+            payload["username"] = user
+            payload["password"] = password
+            conect = requests.Session()
+            #del(connect.auth)
+            print(payload)
+            print(f"{xnaturl}/login")
+            response = conect.post(f"{xnaturl}/login",data=payload)
+            print(response.text)
+            response = conect.get(connect.base_url)
+            if not response.ok:
+                warnings.warn(f"You can't access xnat project {project} with the credenctials provided.")
+                sys.exit("Ending program")
         if dosnapshot == "project":
             print(f"YOUR OUTPUT WILL BE IN:{downloaddir}/dbsnapshot.csv")
             dbsnapshot = pd.DataFrame()

@@ -69,7 +69,7 @@ def downloadphysio(xobject,downloadpath):
                 
 def unzip_and_sort(args):
     downloadpath, extractpath = args
-    subprocess.run(["unzip -j {} -d {}".format(downloadpath, extractpath)], shell=True, stdout=subprocess.DEVNULL)
+    subprocess.run(["unzip -n -j {} -d {}".format(downloadpath, extractpath)], shell=True, stdout=subprocess.DEVNULL)
     subprocess.run(["sortme {}".format(extractpath)], shell=True)               
 
 def download_forpar(args):

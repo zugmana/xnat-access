@@ -11,6 +11,7 @@ import json
 import sys
 import os
 from downloadtools.utils import simplifystring
+from downloadtools.pgsqlutils import get_home_directory
 import warnings
 #xnataddress = "https://fmrif-xnat.nimh.nih.gov"
 #cookie = s.get("https://fmrif-xnat.nimh.nih.gov")
@@ -254,3 +255,17 @@ def namecheck(robinresult,xnatname):
      for name in mismatched_names:
          print(name)
          warnings.warn(f"Warning: The following names from list DICOM PatientName are not in the ROBIN field: {name}")
+def read_config_connect():
+    home_dir = get_home_directory()
+    config_file = os.path.join(home_dir, '.config.xnat')
+
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+    else:
+        config = {}
+        config['login_method'] = input("Enter value for login_method: ")
+        with open(config_file, 'w') as f:
+            json.dump(config, f)
+
+    return config
