@@ -1088,7 +1088,21 @@ def main() :
                                 taskstr  = '_task-restpost'
                                 has_fmap = 'before'
                             multi_echo = True
-                        
+                        elif 'movie' in series_description: # ---------------------------
+                            # This is Francis task (movie) and the associated rest
+                            datatype   = 'func'
+                            modstr     = '_bold'
+                            if 'movietaskepi38mmisome' in series_description : 
+                                taskstr  = '_task-movie'
+                                has_fmap = 'after'
+                            elif 'restingepi38mmisome' in series_description :
+                                taskstr  = '_task-rest'
+                                has_fmap = 'after'
+                            elif 'francispostrestingepi38mmisome' in series_description:
+                                taskstr  = '_task-restpost'
+                                has_fmap = 'before'
+                            multi_echo = True
+                            
                         elif 'epitaskprofile2runs165reps' in series_description: # --------
                             # This is the "Profile" task
                             datatype   = 'func'
@@ -1481,7 +1495,7 @@ def main() :
                                 print("You will need to add it manually")
                                 print("#############################")
                                 continue
-                        D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = 'Field-{}'.format(fmap_opposite)
+                        D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = '{}'.format(fmap_opposite)
                         intendedfor = os.path.join('bids::{}'.format(sdan_id),'ses-{}'.format(D[sdan_id][acquisition_date].loc[i,'ses']), 
                                                                      D[sdan_id][acquisition_date].loc[i,'datatype'], 
                                                                      '{}.nii.gz'.format(D[sdan_id][acquisition_date].loc[i,'newfnam']))
