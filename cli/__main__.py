@@ -19,6 +19,7 @@ import time
 if not hasattr(sys, "ps1"):
     from . __version__ import __version__
 from downloadtools.restutilities import listsubjects, listsession, listscans, queryxnatID, namecheck,downloadfile ,tupletodownload,read_config_connect
+from downloadtools.restutilities import getphysioforsesseions
 from downloadtools.pgsqlutils import checkrobin
 from downloadtools.utils import simplifystring, unzip_and_sort,convert2nii,anonymize,makebids,convert2nii2
 
@@ -32,15 +33,15 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24761"]#["23262","23298"]#["24624","24733"]
+        sdanid = ["24802"]#["23262","23298"]#["24624","24733"]
         #sdanid = False
-        date = [""]#
+        date = ["02/24/2024"]#
         download = True
         SeriesName = [""]
         unzip = True
         keepdicom = False
         search_name = False
-        downloaddir = "/EDB/SDAN/temp/test03-19"
+        downloaddir = "/EDB/SDAN/temp/test07-29"
         user = None
         password = None
         MRNid = None 
@@ -443,6 +444,19 @@ def main():
                             downloadlist.append((connect.xnaturl,f'{j["URI"]}/resources/DICOM/files',downloadpath,cookies))
                             unzipargs.append((downloadpath,unzippath))
                             anonymizeargs.append((dicomorigpaths,dicompaths,i))
+                        if physio :
+                            # get physio list
+                            # for each session:
+                            result,datahdr = getphysioforsesseions(connect,sessions)
+                            if len(datahdr) > 0:
+                                
+                                for file,filedata in datahdr.iterrows() :
+                                    #Obs: will use downloaddir since the files are small and don't require any added processing.
+                                    downloadpath = os.path.join(downloaddir,"nifti",
+                                                            f"sub-{i}",
+                                                            j["date"],"physio",f"{filedata['Name']}")
+                                    
+                                    downloadlist.append((connect.xnaturl,f'{filedata["URI"]}',downloadpath,cookies,False))
                         niftiargs.append((os.path.join(tempdir,"DICOM"),os.path.join(downloaddir,"nifti"),i)) # This should be one per subject
                         print("downloading images - please wait")
                     with multiprocessing.Pool(processes=nworkers) as pool:

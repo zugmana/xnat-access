@@ -185,6 +185,23 @@ def getdicomlist(session,xnatid,sesID,seriesnumber):
     #datahdr.columns = datahdr.iloc[1]
     #datahdr = datahdr.drop(datahdr.index[1])
     return result,datahdr
+def getphysioforsesseions(session,sessiontable):
+    for i,j in sessiontable.iterrows():
+        sesID = j['xnat:mrsessiondata/id']
+        xnatid = j['xnat:mrsessiondata/subject_id']
+        result,datahdr = getphysiolist(session,xnatid,sesID)
+        print(datahdr)
+        return result,datahdr
+def getphysiolist(session,xnatid,sesID):
+    query = f'{session.xnaturl}/data/projects/{session.project}/subjects/{xnatid}/experiments/{sesID}/resources/supplementary/files?format=json'
+    print(query)
+    result = session.get(query)
+    try :
+        datahdr = pd.DataFrame.from_dict(result.json()["ResultSet"]["Result"])
+    except :
+        print(f"{query} returned invalid value")
+        datahdr = []
+    return result,datahdr
 def tupletodownload(baseurl,fileuri,destination,cookies):
     #print(a)
     #baseurl,fileuri,destination,cookies = a
