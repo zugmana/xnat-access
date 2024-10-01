@@ -439,8 +439,10 @@ def main() :
                             datatype = 'anat'
                             modstr = '_T2w'
                             has_fmap = 'no'
+                            acqstr = 'fatsat'
                             multi_echo = False
                             
+
                         elif 'anatt2wcube' in series_description: # -----------------------
                             # This is a T2w
                             datatype = 'anat'
@@ -1216,7 +1218,8 @@ def main() :
                             has_fmap   = 'no'
                             multi_echo = False
                         
-                        elif series_description.startswith('edti25mm62vol'): # ------------
+                        elif series_description.startswith('edti25mm62vol') or \
+                            series_description.startswith('edtimb2mmcdif80'): # ------------
                             # This is diffusion (note multiple versions)
                             datatype   = 'dwi'
                             modstr     = '_dwi'
@@ -1258,6 +1261,7 @@ def main() :
                         D[sdan_id][acquisition_date].loc[oldfnam,'datatype'] = datatype
                         D[sdan_id][acquisition_date].loc[oldfnam,'has_fmap'] = has_fmap
                         D[sdan_id][acquisition_date].loc[oldfnam,'substr'] = substr
+                        
                         #D[sdan_id][acquisition_date].loc[oldfnam,'sesstr'] = sesstr
                         D[sdan_id][acquisition_date].loc[oldfnam, 'taskstr'] = taskstr
                         D[sdan_id][acquisition_date].loc[oldfnam,'recstr'] = recstr
@@ -1440,14 +1444,14 @@ def main() :
                                 #print(seriesnum)
                                 #print(seriesgroup)
                                 B0 = B0 + 1
-                                D[sdan_id][acquisition_date].loc[seriesgroup.index,"B0-identifier"] = "Field-{}".format(B0)
+                                D[sdan_id][acquisition_date].loc[seriesgroup.index,"B0-identifier"] = "Field_{}".format(B0)
                                 # seriesnum = group['seriesnum'].unique()[0]
                                 # Look for matching pair in +1 or -1 run. Sometimes there is just one opposite. This is fine
                                 matchings = df.loc[(df["modstr"] == "_epi")
                                                    & ((df["seriesnum"] == seriesnum-1) | (df["seriesnum"] == seriesnum+1))
                                                    & (df["dirstr"] == "_dir-matching")]
                                 #print(matchings.index)
-                                D[sdan_id][acquisition_date].loc[matchings.index,"B0-identifier"] = "Field-{}".format(B0)
+                                D[sdan_id][acquisition_date].loc[matchings.index,"B0-identifier"] = "Field_{}".format(B0)
                     for i,ii in df.loc[df["has_fmap"]=="before"].iterrows() :
                         #print(i)
                         #print(ii)
@@ -1523,7 +1527,7 @@ def main() :
                             print("Intended for already in the Json?")
                         else :
                             J['IntendedFor'] = ii["intendedfor"]
-                            J["B0FieldIdentifier"] = f"{ii['B0-identifier']}-ses-{ii['ses']}"
+                            J["B0FieldIdentifier"] = f"{ii['B0-identifier']}_ses_{ii['ses']}"
                         
                         writejson(J, jsonfile)
                    # Write Jsons for functional too
@@ -1541,7 +1545,7 @@ def main() :
                             print("B0Field for already in the Json?")
                         else :
                             #J['IntendedFor'] = ii["intendedfor"]
-                            J["B0FieldSource"] = f"{ii['B0-identifier']}-ses-{ii['ses']}"
+                            J["B0FieldSource"] = f"{ii['B0-identifier']}_ses_{ii['ses']}"
                         writejson(J, jsonfile)
 #%%
 # At last Match Physio
