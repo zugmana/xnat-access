@@ -37,7 +37,9 @@ def arguments():
                             help='output path.')
         parser.add_argument('-f','--folder', action='store', type=str, required=True,
                             help='output folder.')
-        return parser
+        parser.add_argument('-s','--ses', action='store', type=str, required=False,
+                            help='session number. If not provided will do a session for each date.', default=None)
+        return parser.parse_args()
         
 def generate_file_dataframe(root_dir,filterdcm=True): # list dicoms while skipping other stuff
     folder_paths = []
@@ -95,28 +97,40 @@ def main():
     if hasattr(sys, "ps1"):
         parser = {}
         parser["id"] = None
-        parser["folder"] = Path('/Path/to/Data/MRXXXXXX/')
-        parser["output"] = Path('/Path/to/BIDS/')
+        parser["folder"] = Path('/Users/zugmana2/Downloads/MR5001090055_20240826_141528/')
+        parser["output"] = Path('/Users/zugmana2/Downloads/')
+        ses = None
     else :
-        parser = arguments()
-        parser["folder"] = Path(parser["folder"])
-        parser["output"] = Path(parser["output"])
-    ses = None # Edit here if you want to specify session number.
+        parsertest = arguments()
+        parser = {}
+        parser["folder"] = Path(parsertest.folder)
+        parser["output"] = Path(parsertest.output)
+        if not str(parser["output"]).endswith("BIDS"):
+            parser["output"] = parser["output"] / "BIDS"
+        parser["id"] = parsertest.id
+        ses = parsertest.ses 
     # First do a walk to get a list of all files and paths.
-    dirlist = generate_file_dataframe(parser["folder"])
-
+    dirlist = generate_file_dataframe(parser["folder"],filterdcm=True)
+    dict_all = {}
     for i,ii in dirlist.groupby(by="folderpath"):
         print(i) # folder
         
-        ds = dcmread(ii.iloc[0]["filepath"]) # 
+        ds = dcmread(ii.iloc[0]["filepath"],stop_before_pixels=True) # adding this optiom makes it faster. 
         if not parser["id"]:
            parser["id"] = ds.PatientID
+        if not ses:
+            datestring = ds.StudyDate
+            
+        else :
+            datestring = ses
+        if datestring not in dict_all:
+            dict_all[datestring]={}
         SeriesDescription = simplifystring(ds.SeriesDescription)
         SeriesNumber = ds.SeriesNumber
         outfile = parser["output"] / parser["id"] / SeriesDescription
         if not outfile.exists():
             os.makedirs(outfile)
-        dcmprocess = ["dcm2niix","-f",f"sub-{parser['id']}_{SeriesDescription}_{SeriesNumber}","-z","y","-o",f"{str(outfile)}",f"{i}"] # This is the command to convert. Edit here if needed.       
+        dcmprocess = ["dcm2niix","-f",f"sub-{parser['id']}_{datestring}_{SeriesDescription}_{SeriesNumber}","-z","y","-o",f"{str(outfile)}",f"{i}"] # This is the command to convert. Edit here if needed.       
         subprocess.run(dcmprocess)
     # now after conversion go through output directory.
     # list files again
@@ -124,190 +138,210 @@ def main():
     # Get rid of bvals and bvecs. These files are not necessary
     # Work only with the jsons (because it's easier)
     outlist = outlist.loc[outlist["filepath"].str.endswith("json")]
-    # Create bids names.
-    # first let's find each type of file
-    matchingfmaps = outlist.loc[outlist["filepath"].str.contains("MATCHING")]
-    oppositefmaps = outlist.loc[outlist["filepath"].str.contains("OPPOSITE")]
-    T1w = outlist.loc[(outlist["filepath"].str.contains("T1W")) & (outlist["filepath"].str.contains("ORIG"))]    # Keep only ORIG
-    T2w = outlist.loc[(outlist["filepath"].str.contains("T2W")) & (outlist["filepath"].str.contains("ORIG"))]
-    MEepi = outlist.loc[(outlist["filepath"].str.contains("EPI25")) &
-                                (~ outlist["filepath"].str.contains("MATCHING")) &
-                                (~ outlist["filepath"].str.contains("OPPOSITE"))]
-    runcount = 0
-    RunNumber = 0
-    os.makedirs(parser["output"] / f"sub-{parser['id']}", exist_ok=True)
-    for i,ii in enumerate(natsorted(MEepi["filepath"])): # this will put the files in order of acquisition, making things easier.
-       
-        RunNumbernew = int(ii.split("_")[-2])
-        if RunNumbernew > RunNumber:
-            RunNumber = RunNumbernew
-            runcount = runcount + 1
-        echonumber = int("".join(re.findall(r"\d+", ii.split("_")[-1])))
-        a = {"subject" :parser['id'] ,
-             "session" : ses,
-             "run" : str(runcount),
-             "echo" : str(echonumber),
-             "datatype": "func",
-             "suffix" : "bold",
-             "extension":".nii.gz",
-             "task" : "rest"}
-        #print(RunNumber)
-        print(ii.replace(".json",".nii.gz"))
-        print("will be saved as \n")
-        print(get_bids_path(a))
-        newfile = get_bids_path(a)
-        #MEepi.loc[MEepi["filepath"] == ii, "newname"] = newfile
-        bidsdir = parser["output"] / newfile.parent
-        if not bidsdir.exists():
-            bidsdir.mkdir()
-        copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
-        #copy2(ii,str(parser["output"] / newfile).replace(".nii.gz", ".json")) # Instead of copying let's edit and save with B0 Field
-        J = readjson(ii)
-        J["B0FieldSource"] = "Field1" + (f"ses{ses}" if ses is not None else "")
-        # This will always use Field 1 # Need to manually adjust if you want something different
-        J["TaskName"] = "rest"
-        writejson(J, str(parser["output"] / newfile).replace(".nii.gz", ".json"))
-    # Now t1w
-    runcount = 0
-    RunNumber = 0
-    os.makedirs(parser["output"] / f"sub-{parser['id']}", exist_ok=True)
-    for i,ii in enumerate(natsorted(T1w["filepath"])): # this will put the files in order of acquisition, making things easier.
-       
-        RunNumbernew = int(ii.split("_")[-1].replace(".json",""))
-        if (RunNumbernew > RunNumber) and (i > 1):
-            RunNumber = RunNumbernew
-            runcount = runcount + 1
-        if len(T1w["filepath"]) == 1:
-            runcount = None
-        a = {"subject" :parser['id'] ,
-             "session" : ses,
-             "run" : runcount,
-             "datatype": "anat",
-             "suffix" : "T1w",
-             "extension":".nii.gz",
-             }
-        #print(RunNumber)
-        print(ii.replace(".json",".nii.gz"))
-        print("will be saved as \n")
-        print(get_bids_path(a))
-        newfile = get_bids_path(a)
-        #T1w.loc[T1w["filepath"] == ii, "newname"] = newfile
-        bidsdir = parser["output"] / newfile.parent
-        if not bidsdir.exists():
-            bidsdir.mkdir()
-        copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
-        copy2(ii,str(parser["output"] / newfile).replace(".nii.gz", ".json"))
-    runcount = 0
-    RunNumber = 0
-    for i,ii in enumerate(natsorted(T2w["filepath"])): # this will put the files in order of acquisition, making things easier.
-       
-        RunNumbernew = int(ii.split("_")[-1].replace(".json",""))
-        if (RunNumbernew > RunNumber) and (i > 1):
-            RunNumber = RunNumbernew
-            runcount = runcount + 1
-        if len(T2w["filepath"]) == 1:
-            runcount = None
-        a = {"subject" :parser['id'] ,
-             "session" : ses,
-             "run" : runcount,
-             "datatype": "anat",
-             "suffix" : "T2w",
-             "extension":".nii.gz",
-             }
-        #print(RunNumber)
-        print(ii.replace(".json",".nii.gz"))
-        print("will be saved as \n")
-        print(get_bids_path(a))
-        newfile = get_bids_path(a)
-        #T2w.loc[T2w["filepath"] == ii, "newname"] = newfile
-        bidsdir = parser["output"] / newfile.parent
-        if not bidsdir.exists():
-            bidsdir.mkdir()
-        copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
-        copy2(ii,str(parser["output"] / newfile).replace(".nii.gz", ".json"))
-    runcount = 0
-    RunNumber = 0
-    for i,ii in enumerate(natsorted(matchingfmaps["filepath"])): # this will put the files in order of acquisition, making things easier.
-        if not ii.__contains__('e1'): # The idea of these lines is to get the first echo only. If you want something different edit this
-            continue
-        if not ii.__contains__('DISTORTION'): # Likewise I'm discarding the single bands for simplicity. If you want you can change this
-            continue
-        RunNumbernew = int(ii.split("_")[-2].replace(".json",""))
-        if (RunNumbernew > RunNumber) and (i > 1):
-            RunNumber = RunNumbernew
-            runcount = runcount + 1
-        if runcount == 0:
-            runcounter = None
-        else :
-           runcounter = runcount
-        a = {"subject" :parser['id'] ,
-            "session" : ses,
-            "run" : runcounter,
-             "datatype": "fmap",
-             "suffix" : "epi",
-             "extension":".nii.gz",
-             "direction":"matching"
-             }
-        #print(RunNumber)
-        print(ii.replace(".json",".nii.gz"))
-        print("will be saved as \n")
-        print(get_bids_path(a))
-        newfile = get_bids_path(a)
-        #matchingfmaps.loc[matchingfmaps["filepath"] == ii, "newname"] = newfile
-        bidsdir = parser["output"] / newfile.parent
-        if not bidsdir.exists():
-            bidsdir.mkdir()
-        copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
-        J = readjson(ii)
-        J["B0FieldIdentifier"] = "Field1" + (f"ses{ses}" if ses is not None else "") # This will always use Field 1 # Need to manually adjust if you want something different
-        writejson(J, str(parser["output"] / newfile).replace(".nii.gz", ".json"))
-    runcount = 0
-    RunNumber = 0
-    for i,ii in enumerate(natsorted(oppositefmaps["filepath"])): # this will put the files in order of acquisition, making things easier.
-        if not ii.__contains__('e1'): # The idea of these lines is to get the first echo only. If you want something different edit this
-            continue
-        if not ii.__contains__('DISTORTION'): # Likewise I'm discarding the single bands for simplicity. If you want you can change this
-            continue
-        RunNumbernew = int(ii.split("_")[-2].replace(".json",""))
-        if (RunNumbernew > RunNumber) and (i > 1):
-            RunNumber = RunNumbernew
-            runcount = runcount + 1
-        if runcount == 0:
-            runcounter = None
-        else :
-            runcounter = runcount
-        a = {"subject" :parser['id'] ,
-             "session" : ses,
-             "run" : runcounter,
-             "datatype": "fmap",
-             "suffix" : "epi",
-             "extension":".nii.gz",
-             "direction":"opposite"
-             }
-        #print(RunNumber)
-        print(ii.replace(".json",".nii.gz"))
-        print("will be saved as \n")
-        print(get_bids_path(a))
-        newfile = get_bids_path(a)
-        #oppositefmaps.loc[oppositefmaps["filepath"] == ii, "newname"] = newfile
-        bidsdir = parser["output"] / newfile.parent
-        if not bidsdir.exists():
-            bidsdir.mkdir()
-        copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
-        J = readjson(ii)
-        J["B0FieldIdentifier"] = "Field1" + (f"ses{ses}" if ses is not None else "") # This will always use Field 1 # Need to manually adjust if you want something different
-        writejson(J, str(parser["output"] / newfile).replace(".nii.gz", ".json"))    
+    for k in dict_all:
+        # Create bids names.
+        # first let's find each type of file
+        dict_all[k]["matchingfmaps"] = outlist.loc[(outlist["filepath"].str.contains("MATCHING")) & (outlist["filepath"].str.contains(k))]
+        dict_all[k]["oppositefmaps"] = outlist.loc[(outlist["filepath"].str.contains("OPPOSITE")) & (outlist["filepath"].str.contains(k))]
+        dict_all[k]["T1w"] = outlist.loc[(outlist["filepath"].str.contains("T1W")) & (outlist["filepath"].str.contains("ORIG"))  & (outlist["filepath"].str.contains(k))]    # Keep only ORIG
+        dict_all[k]["T2w"] = outlist.loc[(outlist["filepath"].str.contains("T2W")) & (outlist["filepath"].str.contains("ORIG"))  & (outlist["filepath"].str.contains(k))]
+        dict_all[k]["MEepi"] = outlist.loc[(outlist["filepath"].str.contains("EPI25")) &
+                                    (~ outlist["filepath"].str.contains("MATCHING")) &
+                                    (~ outlist["filepath"].str.contains("OPPOSITE"))  & (outlist["filepath"].str.contains(k))]
+        runcount = 0
+        RunNumber = 0
+        
+    # sort keys by dates... will this work?
+    sorted_dates = natsorted(dict_all.keys())
 
-    if not Path( parser["output"] / "dataset_description.json").exists():
-        J =  {"Name": "MBME for TMS",
-             "BIDSVersion": "1.8.0",
-             "Authors": [""],
-             "Acknowledgements": "This BIDS dataset was created using the scripts in https://github.com/zugmana/xnat-access created by Andre Zugman"
-             }
-        writejson(J, parser["output"] / "dataset_description.json" )
-    # Clean up
-    if Path( parser["output"] / parser["id"]).is_dir():
-        rmtree(Path( parser["output"] / parser["id"]))
+    # Step 2: Create a mapping from sorted dates to integer values
+    date_to_int = {date: i + 1 for i, date in enumerate(sorted_dates)}
+
+    # Step 3: Update the dictionary with integer values instead of date strings
+    updated_dates = {date_to_int[date]: value for date, value in dict_all.items()}
+    
+    # Now do the same thing it used to, but looping inside each dict.
+    for k in updated_dates:
+        ses = k
+        
+        os.makedirs(parser["output"] / f"sub-{parser['id']}" / f"ses-{ses}", exist_ok=True)
+        MEepi = updated_dates[k]["MEepi"]
+        T1w = updated_dates[k]["T1w"]
+        T2w = updated_dates[k]["T2w"]
+        matchingfmaps = updated_dates[k]["matchingfmaps"]
+        oppositefmaps = updated_dates[k]["oppositefmaps"]
+        for i,ii in enumerate(natsorted(MEepi["filepath"])): # this will put the files in order of acquisition, making things easier.
+           
+            RunNumbernew = int(ii.split("_")[-2])
+            if RunNumbernew > RunNumber:
+                RunNumber = RunNumbernew
+                runcount = runcount + 1
+            echonumber = int("".join(re.findall(r"\d+", ii.split("_")[-1])))
+            a = {"subject" :parser['id'] ,
+                 "session" : ses,
+                 "run" : str(runcount),
+                 "echo" : str(echonumber),
+                 "datatype": "func",
+                 "suffix" : "bold",
+                 "extension":".nii.gz",
+                 "task" : "rest"}
+            #print(RunNumber)
+            print(ii.replace(".json",".nii.gz"))
+            print("will be saved as \n")
+            print(get_bids_path(a))
+            newfile = get_bids_path(a)
+            #MEepi.loc[MEepi["filepath"] == ii, "newname"] = newfile
+            bidsdir = parser["output"] / newfile.parent
+            if not bidsdir.exists():
+                bidsdir.mkdir()
+            copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
+            #copy2(ii,str(parser["output"] / newfile).replace(".nii.gz", ".json")) # Instead of copying let's edit and save with B0 Field
+            J = readjson(ii)
+            J["B0FieldSource"] = "Field1" + (f"ses{ses}" if ses is not None else "")
+            # This will always use Field 1 # Need to manually adjust if you want something different
+            J["TaskName"] = "rest"
+            writejson(J, str(parser["output"] / newfile).replace(".nii.gz", ".json"))
+        # Now t1w
+        runcount = 0
+        RunNumber = 0
+        os.makedirs(parser["output"] / f"sub-{parser['id']}", exist_ok=True)
+        for i,ii in enumerate(natsorted(T1w["filepath"])): # this will put the files in order of acquisition, making things easier.
+           
+            RunNumbernew = int(ii.split("_")[-1].replace(".json",""))
+            if (RunNumbernew > RunNumber) and (i > 1):
+                RunNumber = RunNumbernew
+                runcount = runcount + 1
+            if len(T1w["filepath"]) == 1:
+                runcount = None
+            a = {"subject" :parser['id'] ,
+                 "session" : ses,
+                 "run" : runcount,
+                 "datatype": "anat",
+                 "suffix" : "T1w",
+                 "extension":".nii.gz",
+                 }
+            #print(RunNumber)
+            print(ii.replace(".json",".nii.gz"))
+            print("will be saved as \n")
+            print(get_bids_path(a))
+            newfile = get_bids_path(a)
+            #T1w.loc[T1w["filepath"] == ii, "newname"] = newfile
+            bidsdir = parser["output"] / newfile.parent
+            if not bidsdir.exists():
+                bidsdir.mkdir()
+            copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
+            copy2(ii,str(parser["output"] / newfile).replace(".nii.gz", ".json"))
+        runcount = 0
+        RunNumber = 0
+        for i,ii in enumerate(natsorted(T2w["filepath"])): # this will put the files in order of acquisition, making things easier.
+           
+            RunNumbernew = int(ii.split("_")[-1].replace(".json",""))
+            if (RunNumbernew > RunNumber) and (i > 1):
+                RunNumber = RunNumbernew
+                runcount = runcount + 1
+            if len(T2w["filepath"]) == 1:
+                runcount = None
+            a = {"subject" :parser['id'] ,
+                 "session" : ses,
+                 "run" : runcount,
+                 "datatype": "anat",
+                 "suffix" : "T2w",
+                 "extension":".nii.gz",
+                 }
+            #print(RunNumber)
+            print(ii.replace(".json",".nii.gz"))
+            print("will be saved as \n")
+            print(get_bids_path(a))
+            newfile = get_bids_path(a)
+            #T2w.loc[T2w["filepath"] == ii, "newname"] = newfile
+            bidsdir = parser["output"] / newfile.parent
+            if not bidsdir.exists():
+                bidsdir.mkdir()
+            copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
+            copy2(ii,str(parser["output"] / newfile).replace(".nii.gz", ".json"))
+        runcount = 0
+        RunNumber = 0
+        for i,ii in enumerate(natsorted(matchingfmaps["filepath"])): # this will put the files in order of acquisition, making things easier.
+            if not ii.__contains__('e1'): # The idea of these lines is to get the first echo only. If you want something different edit this
+                continue
+            if not ii.__contains__('DISTORTION'): # Likewise I'm discarding the single bands for simplicity. If you want you can change this
+                continue
+            RunNumbernew = int(ii.split("_")[-2].replace(".json",""))
+            if (RunNumbernew > RunNumber) and (i > 1):
+                RunNumber = RunNumbernew
+                runcount = runcount + 1
+            if runcount == 0:
+                runcounter = None
+            else :
+               runcounter = runcount
+            a = {"subject" :parser['id'] ,
+                "session" : ses,
+                "run" : runcounter,
+                 "datatype": "fmap",
+                 "suffix" : "epi",
+                 "extension":".nii.gz",
+                 "direction":"matching"
+                 }
+            #print(RunNumber)
+            print(ii.replace(".json",".nii.gz"))
+            print("will be saved as \n")
+            print(get_bids_path(a))
+            newfile = get_bids_path(a)
+            #matchingfmaps.loc[matchingfmaps["filepath"] == ii, "newname"] = newfile
+            bidsdir = parser["output"] / newfile.parent
+            if not bidsdir.exists():
+                bidsdir.mkdir()
+            copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
+            J = readjson(ii)
+            J["B0FieldIdentifier"] = "Field1" + (f"ses{ses}" if ses is not None else "") # This will always use Field 1 # Need to manually adjust if you want something different
+            writejson(J, str(parser["output"] / newfile).replace(".nii.gz", ".json"))
+        runcount = 0
+        RunNumber = 0
+        for i,ii in enumerate(natsorted(oppositefmaps["filepath"])): # this will put the files in order of acquisition, making things easier.
+            if not ii.__contains__('e1'): # The idea of these lines is to get the first echo only. If you want something different edit this
+                continue
+            if not ii.__contains__('DISTORTION'): # Likewise I'm discarding the single bands for simplicity. If you want you can change this
+                continue
+            RunNumbernew = int(ii.split("_")[-2].replace(".json",""))
+            if (RunNumbernew > RunNumber) and (i > 1):
+                RunNumber = RunNumbernew
+                runcount = runcount + 1
+            if runcount == 0:
+                runcounter = None
+            else :
+                runcounter = runcount
+            a = {"subject" :parser['id'] ,
+                 "session" : ses,
+                 "run" : runcounter,
+                 "datatype": "fmap",
+                 "suffix" : "epi",
+                 "extension":".nii.gz",
+                 "direction":"opposite"
+                 }
+            #print(RunNumber)
+            print(ii.replace(".json",".nii.gz"))
+            print("will be saved as \n")
+            print(get_bids_path(a))
+            newfile = get_bids_path(a)
+            #oppositefmaps.loc[oppositefmaps["filepath"] == ii, "newname"] = newfile
+            bidsdir = parser["output"] / newfile.parent
+            if not bidsdir.exists():
+                bidsdir.mkdir()
+            copy2(ii.replace(".json",".nii.gz"),parser["output"] / newfile)
+            J = readjson(ii)
+            J["B0FieldIdentifier"] = "Field1" + (f"ses{ses}" if ses is not None else "") # This will always use Field 1 # Need to manually adjust if you want something different
+            writejson(J, str(parser["output"] / newfile).replace(".nii.gz", ".json"))    
+    
+        if not Path( parser["output"] / "dataset_description.json").exists():
+            J =  {"Name": "MBME for TMS",
+                 "BIDSVersion": "1.8.0",
+                 "Authors": [""],
+                 "Acknowledgements": "This BIDS dataset was created using the scripts in https://github.com/zugmana/xnat-access created by Andre Zugman"
+                 }
+            writejson(J, parser["output"] / "dataset_description.json" )
+        # Clean up
+        if Path( parser["output"] / parser["id"]).is_dir():
+            rmtree(Path( parser["output"] / parser["id"]))
         
 if __name__ == "__main__" :
     main()
