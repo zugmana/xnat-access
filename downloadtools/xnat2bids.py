@@ -227,8 +227,8 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/test08-30/nifti"
-        dirout="/EDB/SDAN/temp/test08-30/BIDS"
+        dirin="/EDB/SDAN/temp/TMSreliability/nifti"
+        dirout="/EDB/SDAN/temp/TMSreliability/BIDS.new.new"
         renumber = True
     else :       
         args = parseArguments(sys.argv)
@@ -377,7 +377,7 @@ def main() :
                         multi_echo = False
                         #print(sesstr)
                         #print(runstr)
-                        # ===== ANATOMY ===================================================
+                        # ===== Structural ===================================================
                         #print('Simplified SeriesDescription: {}'.format(series_description))
                         if 'anatt1wmprage1mm' in series_description: # --------------------
                             # This is a T1w
@@ -833,7 +833,14 @@ def main() :
                             taskstr    = '_task-TAU'
                             has_fmap   = 'no'
                             multi_echo = False
-                        
+                        elif 'tau30x2' == series_description: # --------------------------
+                            # This is the TAU task (first protocol)
+                            datatype   = 'func'
+                            modstr     = '_bold'
+                            taskstr    = '_task-TAU-3'
+                            has_fmap   = 'before'
+                            multi_echo = False
+                            
                         elif series_description.startswith('virtualschool4runs') and \
                             series_description.endswith('reps'): # ------------------------
                             # This is the "Virtual School" task (first version)
@@ -1250,6 +1257,7 @@ def main() :
                         if (datatype == 'fmap') and multi_echo :
                             if   'singleband' in series_description:
                                 acqstr = '_acq-SBME'
+                                modstr = '_sbref'
                             else:
                                 acqstr = '_acq-MBME'
                             
@@ -1431,12 +1439,18 @@ def main() :
 #
         for sdan_id in D:
             for acquisition_date in D[sdan_id]:
-                df = D[sdan_id][acquisition_date]
+                
+                
+
                 D[sdan_id][acquisition_date]["intendedfor"] = np.empty((len(D[sdan_id][acquisition_date]),0)).tolist()
-                df = D[sdan_id][acquisition_date]
-                if len(df.loc[df["datatype"] == "fmap"]) > 0:
+                D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["datatype"] == "fmap", "seriesnum"] = range(len(D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["datatype"] == "fmap"]))
+                #df = D[sdan_id][acquisition_date]
+                #df = df[~df["series_description"].str.contains("singleband", case=False, na=False)] # I don't want to use these
+                #df = df.sort_values(by=["acquisition_time"],ascending=False)
+                if len(D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["datatype"] == "fmap"]) > 0:
                     B0 = 0
-                    for g, group in df.loc[(df["modstr"] == "_epi")].groupby(["dirstr","run"], sort=False):
+                    for g, group in D[sdan_id][acquisition_date].loc[
+                            (D[sdan_id][acquisition_date]["modstr"] == "_epi")].groupby(["dirstr","run"], sort=False):
                         #print(group.index)
                         if 'opposite' in g[0]:
                             
@@ -1447,19 +1461,25 @@ def main() :
                                 D[sdan_id][acquisition_date].loc[seriesgroup.index,"B0-identifier"] = "Field_{}".format(B0)
                                 # seriesnum = group['seriesnum'].unique()[0]
                                 # Look for matching pair in +1 or -1 run. Sometimes there is just one opposite. This is fine
-                                matchings = df.loc[(df["modstr"] == "_epi")
-                                                   & ((df["seriesnum"] == seriesnum-1) | (df["seriesnum"] == seriesnum+1))
-                                                   & (df["dirstr"] == "_dir-matching")]
-                                #print(matchings.index)
+                                matchings = D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["modstr"] == "_epi")
+                                                   & ((D[sdan_id][acquisition_date]["seriesnum"] == seriesnum-1) | (D[sdan_id][acquisition_date]["seriesnum"] == seriesnum+1))
+                                                   & (D[sdan_id][acquisition_date]["dirstr"] == "_dir-matching")]
+                                print(matchings.index)
                                 D[sdan_id][acquisition_date].loc[matchings.index,"B0-identifier"] = "Field_{}".format(B0)
-                    for i,ii in df.loc[df["has_fmap"]=="before"].iterrows() :
+                    #df = D[sdan_id][acquisition_date]
+                    
+                    for i,ii in D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["has_fmap"]=="before"].iterrows() :
                         #print(i)
                         #print(ii)
                         seriesnum = ii["seriesnum"]
+                        seriesdatetime = ii["acquisition_time"]
                         #find the first fmap before this run.
-                        fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite")
-                                               & (df["seriesnum"] < seriesnum)
-                                               & (df["modstr"] == "_epi"),"B0-identifier"]
+                        
+                        fmap_opposite = D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["dirstr"] == "_dir-opposite")
+                                               #& (D[sdan_id][acquisition_date]["seriesnum"] < seriesnum)
+                                               & (D[sdan_id][acquisition_date]["modstr"] == "_epi")
+                                               & (D[sdan_id][acquisition_date]["acquisition_time"] < seriesdatetime)
+                                               ,"B0-identifier"]
                         #print(fmap_opposite)
                         fmap_opposite = fmap_opposite.values[-1] 
                         D[sdan_id][acquisition_date].loc[i,"B0-identifier"] = fmap_opposite
@@ -1475,15 +1495,17 @@ def main() :
                            D[sdan_id][acquisition_date].loc[j,"intendedfor"].append(intendedfor)
                            #print(D[sdan_id][acquisition_date].loc[j,"intendedfor"])
                     #Now for after
-                    for i,ii in df.loc[df["has_fmap"]=="after"].iterrows() :
+                    for i,ii in D[sdan_id][acquisition_date].loc[D[sdan_id][acquisition_date]["has_fmap"]=="after"].iterrows() :
                         #print(i)
                         #print(ii)
                         seriesnum = ii["seriesnum"]
+                        seriesdatetime = ii["acquisition_time"]
                         #find the first fmap before this run.
                         try :
-                            fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") 
-                                                   & (df["seriesnum"] > seriesnum)
-                                                   & (df["modstr"] == "_epi")].iloc[0]["B0-identifier"]
+                            fmap_opposite = D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["dirstr"] == "_dir-opposite") 
+                                                   #& (D[sdan_id][acquisition_date]["seriesnum"] > seriesnum)
+                                                   & (D[sdan_id][acquisition_date]["acquisition_time"] > seriesdatetime)
+                                                   & (D[sdan_id][acquisition_date]["modstr"] == "_epi")].iloc[0]["B0-identifier"]
                         except IndexError :
                             print("#############################")
                             print("fmap failed for {}".format(ii["newfnam"]))
@@ -1491,7 +1513,7 @@ def main() :
                             print("Check this carefully")
                             print("#############################")
                             try :
-                                fmap_opposite = df.loc[(df["dirstr"] == "_dir-opposite") & (df["seriesnum"] < seriesnum)].iloc[-1]["B0-identifier"]
+                                fmap_opposite = D[sdan_id][acquisition_date].loc[(D[sdan_id][acquisition_date]["dirstr"] == "_dir-opposite") & (D[sdan_id][acquisition_date]["seriesnum"] < seriesnum)].iloc[-1]["B0-identifier"]
                             except IndexError :
                                 print("#############################")
                                 print("fmap failed for {}".format(ii["newfnam"]))

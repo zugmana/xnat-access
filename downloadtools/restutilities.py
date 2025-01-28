@@ -190,11 +190,11 @@ def getphysioforsesseions(session,sessiontable):
         sesID = j['xnat:mrsessiondata/id']
         xnatid = j['xnat:mrsessiondata/subject_id']
         result,datahdr = getphysiolist(session,xnatid,sesID)
-        print(datahdr)
+        #print(datahdr)
         return result,datahdr
 def getphysiolist(session,xnatid,sesID):
     query = f'{session.xnaturl}/data/projects/{session.project}/subjects/{xnatid}/experiments/{sesID}/resources/supplementary/files?format=json'
-    print(query)
+    #print(query)
     result = session.get(query)
     try :
         datahdr = pd.DataFrame.from_dict(result.json()["ResultSet"]["Result"])

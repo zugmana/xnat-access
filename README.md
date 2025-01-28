@@ -93,3 +93,7 @@ Removed dependencies for xnatpy.
 The functions are now directly based on requests package for python
 added options for dbsnapshot. You can now select the level, project, sessions, or scans,
 Scan will take longer and check names against robin.
+
+NEW On v 0.7.2.7:
+Added Tau 3 to the bids script.
+

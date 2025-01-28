@@ -33,9 +33,9 @@ def main():
     if hasattr(sys, "ps1"):
         project = "01-M-0192"
         dosnapshot = False
-        sdanid = ["24802"]#["23262","23298"]#["24624","24733"]
+        sdanid = ["24851","24851","24851","24851"]#["23262","23298"]#["24624","24733"]
         #sdanid = False
-        date = ["02/24/2024"]#
+        date = ["05/20/2024", "06/02/2024", "08/10/2024", "09/07/2024"]#
         download = True
         SeriesName = [""]
         unzip = True
@@ -442,6 +442,7 @@ def main():
                             dicomorigpaths = os.path.join(tempdir,"DICOM")
                             dicompaths = os.path.join(downloaddir,"DICOM")
                             downloadlist.append((connect.xnaturl,f'{j["URI"]}/resources/DICOM/files',downloadpath,cookies))
+                            #print((connect.xnaturl,f'{j["URI"]}/resources/DICOM/files',downloadpath,cookies))
                             unzipargs.append((downloadpath,unzippath))
                             anonymizeargs.append((dicomorigpaths,dicompaths,i))
                         if physio :
@@ -457,8 +458,10 @@ def main():
                                                             j["date"],"physio",f"{filedata['Name']}")
                                     
                                     downloadlist.append((connect.xnaturl,f'{filedata["URI"]}',downloadpath,cookies,False))
+                                    print((connect.xnaturl,f'{filedata["URI"]}',downloadpath,cookies,False))
                         niftiargs.append((os.path.join(tempdir,"DICOM"),os.path.join(downloaddir,"nifti"),i)) # This should be one per subject
                         print("downloading images - please wait")
+                    
                     with multiprocessing.Pool(processes=nworkers) as pool:
                         pool.starmap(downloadfile, downloadlist)
                         pool.map(unzip_and_sort, unzipargs)
