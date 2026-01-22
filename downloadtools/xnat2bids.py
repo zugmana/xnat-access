@@ -205,7 +205,7 @@ def write_to_file(sessionpath,filename, acqtime):
         # Append the variables to the last line of the file
         f.write(f'{filename}\t{acqtime}\n')
 def format_date(date_string):
-    possible_formats = ['%m-%d-%Y', '%d-%m-%Y', '%Y-%m-%d','%Y%m%d','%m/%d/%Y']  # Add more formats if needed
+    possible_formats = ['%m-%d-%Y', '%d-%m-%Y', '%Y-%m-%d','%Y%m%d','%m/%d/%Y','%Y-%m-%dT%H:%M:%S']  # Add more formats if needed
     
     for date_format in possible_formats:
         try:
@@ -227,9 +227,9 @@ def main() :
 # Parse arguments
     if hasattr(sys, "ps1") :
         args={}
-        dirin="/EDB/SDAN/temp/TMSreliability/nifti"
-        dirout="/EDB/SDAN/temp/TMSreliability/BIDS.new.new"
-        renumber = True
+        dirin="/EDB/SDAN/temp/CAT-Ddwi"
+        dirout="/EDB/SDAN/temp/CAT-Ddwi-BIDS"
+        renumber = False
     else :       
         args = parseArguments(sys.argv)
         dirin = args.dirin
@@ -257,7 +257,7 @@ def main() :
         # For each file in the newly created BIDS dir:
         for curdir, subdirs, files in os.walk(dirin,topdown=False):
             # Get physio if available
-
+            #print(curdir)
             if "physio" in curdir :
                 sdan_id = [i for i in curdir.split("/") if "sub-" in i][0]
                 print(sdan_id)
@@ -300,6 +300,7 @@ def main() :
                     #print(f)
         #             # Check if the current file could belong to BIDS and if it's a JSON
                     isfbids, oldfnam, fext = isbidsfile(f)
+                    print(curdir)
                     sdan_id = [i for i in curdir.split("/") if "sub-" in i][0]
                     if isfbids and (fext == '.json'):
     
@@ -319,6 +320,10 @@ def main() :
                         series_description = ''
                         acquisition_date   = curdir.split('/')[-2]
                         acquisition_date   = format_date(acquisition_date)#datetime.datetime.strptime(acquisition_date,'%m-%d-%Y')
+                        if not acquisition_date:
+                            acquisition_date = J["AcquisitionDateTime"]
+                            acquisition_date   = format_date(acquisition_date).date()
+                            #print(acquisition_date)
                         acquisition_time   = ''
                         echo_time          = ''
                         serialnum          = ''
@@ -352,6 +357,11 @@ def main() :
                                                                           '%m-%d-%YT%H:%M:%S.%f')
                             D[sdan_id][acquisition_date].loc[oldfnam,'acquisition_time'] = acquisition_time
                             #print(acquisition_time)
+                        if not 'AcquisitionTime' in J:
+                            if "AcquisitionDateTime" in J:
+                                acquisition_time = J["AcquisitionDateTime"]
+                                acquisition_time   = format_date(acquisition_time)
+                                D[sdan_id][acquisition_date].loc[oldfnam,'acquisition_time'] = acquisition_time
                         D[sdan_id][acquisition_date].loc[oldfnam,'acquisition_date'] = acquisition_date
                         D[sdan_id][acquisition_date].loc[oldfnam,'oldpath'] = curdir
         #                 # Read the NIFTI file and collect some information from the header
@@ -1127,7 +1137,15 @@ def main() :
                             taskstr    = '_task-ER3'
                             has_fmap   = 'after'
                             multi_echo = False
-            
+                            
+                        elif any(k in series_description for k in ['kotzka','fractal']): # --------------------------
+                            # This is the "Extinction Recall 3" task
+                            datatype   = 'func'
+                            modstr     = '_bold'
+                            taskstr    = '_task-kotzka'
+                            has_fmap   = 'before'
+                            multi_echo = False
+                            
                         elif series_description.startswith('epitask'): # ------------------
                             # These are the 3 tasks of the Wisconsin project
                             datatype   = 'func'
@@ -1338,8 +1356,8 @@ def main() :
                     #make sure scans are sorted.
                     D[sdan_id][acquisition_date].sort_values(
                                          "acquisition_time",ascending=True, inplace=True)
-                    if countses == 1:
-                       [dateano,years,months] = subtract_years_months(acquisition_date) 
+                    #if countses == 1:
+                    #   [dateano,years,months] = subtract_years_months(acquisition_date) 
                     D[sdan_id][acquisition_date]["ses"] = pd.to_datetime(D[sdan_id][acquisition_date]["acquisition_time"]).dt.strftime(
                         '%Y-%m-%d')
                     D[sdan_id][acquisition_date]["run"] = pd.to_datetime(D[sdan_id][acquisition_date]["acquisition_time"]).dt.strftime(
@@ -1411,17 +1429,17 @@ def main() :
                                 # print("{} to {}".format(
                                 #     D[sdan_id][acquisition_date].loc[oldfnam,"acquisition_time"],
                                 #     D[sdan_id][acquisition_date].loc[oldfnam,"anondate"]))
-                                
-                                write_to_file(os.path.join(dirout,
-                                                       '{}'.format(sdan_id),
-                                                       'ses-{}'.format(
-                                                           D[sdan_id][acquisition_date].loc[oldfnam, 'ses']),
-                                                       "{}_ses-{}_scans.tsv".format(
-                                                           sdan_id, D[sdan_id][acquisition_date].loc[oldfnam, 'ses'])), 
-                                              "/".join(newfile.split("/")[-2:]),
-                                              D[sdan_id][acquisition_date].loc[oldfnam,"anondate"])
-                                write_to_file(os.path.join(dirout,"DONOTSHARE-PII-IS-HERE-scans.tsv"),newfile,
-                                              D[sdan_id][acquisition_date].loc[oldfnam,"ndays"].days)
+                                if renumber:
+                                    write_to_file(os.path.join(dirout,
+                                                           '{}'.format(sdan_id),
+                                                           'ses-{}'.format(
+                                                               D[sdan_id][acquisition_date].loc[oldfnam, 'ses']),
+                                                           "{}_ses-{}_scans.tsv".format(
+                                                               sdan_id, D[sdan_id][acquisition_date].loc[oldfnam, 'ses'])), 
+                                                  "/".join(newfile.split("/")[-2:]),
+                                                  D[sdan_id][acquisition_date].loc[oldfnam,"anondate"])
+                                    write_to_file(os.path.join(dirout,"DONOTSHARE-PII-IS-HERE-scans.tsv"),newfile,
+                                                  D[sdan_id][acquisition_date].loc[oldfnam,"ndays"].days)
                                 #add things here to save scans.tsv
     
 #
